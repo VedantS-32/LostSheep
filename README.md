@@ -2,7 +2,7 @@
 My memo for daily activities
 
 ### Prerequisites
-- C++
+- C++ (tested with gcc and msvc)
 - Python
 - Git
 

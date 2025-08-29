@@ -11,22 +11,23 @@ project "LostSheepCore"
 	files {
 		"%{wks.location}/LostSheepCore/Vendor/glad/include/glad/glad.h",
 		"%{wks.location}/LostSheepCore/Vendor/glad/src/glad.c",
-		
-        "Source/**.h",
-        "Source/**.c"
+
+		"Source/**.h",
+		"Source/**.c"
 	}
-    
+
 	includedirs {
-        "Source",
-        "%{IncludeDir.glfw}",
-        "%{IncludeDir.glad}",
+		"Source",
+		"%{IncludeDir.glfw}",
+		"%{IncludeDir.glad}",
 		"%{IncludeDir.clay}"
 	}
 
-    links {
+	links {
 		"opengl32",
-        "glfw"
-    }
+		"gdi32",
+		"glfw"
+	}
 
 	filter "action:vs*"
 	postbuildcommands {
