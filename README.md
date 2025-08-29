@@ -6,7 +6,7 @@ My memo for daily activities
 - Python
 - Git
 
-### Clone repository'
+### Clone repository
 ```shell
 git clone --recursive https://github.com/VedantS-32/LostSheep.git
 ```
