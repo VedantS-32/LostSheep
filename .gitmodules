@@ -1,0 +1,3 @@
+[submodule "LostSheepCore/Vendor/glfw"]
+	path = LostSheepCore/Vendor/glfw
+	url = https://github.com/VedantS-32/glfw.git
