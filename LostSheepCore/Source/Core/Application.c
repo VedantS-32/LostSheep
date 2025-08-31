@@ -5,9 +5,9 @@
 #include "clay.h"
 #pragma warning(pop)
 
-
-#include "Window.h"
-#include "Log.h"
+#include "Core/Window.h"
+#include "Core/Log.h"
+#include "Event/Event.h"
 
 static int s_Running = 1;
 
@@ -20,6 +20,8 @@ int InitApplication(const char* title, int width, int height)
 
         return 0;
     }
+
+	SetWindowEventCallback(OnEventApplication);
 
 	LSH_TRACE("Application created");
 
@@ -34,12 +36,29 @@ void RunApplication()
     }
 }
 
+void OnEventApplication(void* event)
+{
+	Event* e = (Event*)event;
+    
+	WindowLogEvent(e);
+	DispatchEvent(EventTypeWindowClose, e, OnEventWindowClose);
+
+    free(e->Data);
+}
+
+int OnEventWindowClose(Event* event)
+{
+	CloseApplication();
+    return 1;
+}
+
 void CloseApplication()
 {
+    LSH_INFO("Closed window: %s", GetWindowData()->Title);
     s_Running = 0;
 }
 
 void ShutdownApplication()
 {
-    LSH_TRACE("Application shut down");
+    LSH_INFO("Application shut down");
 }

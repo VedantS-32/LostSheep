@@ -12,6 +12,8 @@ project "LostSheepCore"
 		"%{wks.location}/LostSheepCore/Vendor/glad/include/glad/glad.h",
 		"%{wks.location}/LostSheepCore/Vendor/glad/src/glad.c",
 
+		"%{wks.location}/LostSheepCore/Vendor/cglm/include/**h",
+
 		"Source/**.h",
 		"Source/**.c"
 	}
@@ -20,6 +22,7 @@ project "LostSheepCore"
 		"Source",
 		"%{IncludeDir.glfw}",
 		"%{IncludeDir.glad}",
+		"%{IncludeDir.cglm}",
 		"%{IncludeDir.clay}"
 	}
 
