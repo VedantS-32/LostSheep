@@ -5,7 +5,7 @@ typedef struct GLFWwindow GLFWwindow;
 
 typedef struct Event Event;
 
-typedef void (* EventCallbackHandlefn)(void* Event);
+typedef void (* EventCallbackHandlefn)(Event* Event);
 
 typedef struct WindowData
 {
@@ -22,11 +22,13 @@ static void RegisterCallbacks(GLFWwindow* window);
 
 int CreateWindow(const char* title, int width, int height);
 
-const GLFWwindow* GetNativeWindow();
+GLFWwindow* GetNativeWindow();
 
 const WindowData* GetWindowData();
 
-void OnUpdateWindow();
+const float GetTimeWindow();
+
+void OnUpdateWindow(float deltaTime);
 
 void ShutdownWindow();
 

@@ -1,15 +1,19 @@
 #include "Application.h"
 
-#define CLAY_IMPLEMENTATION
-#pragma warning(push, 0)
-#include "clay.h"
-#pragma warning(pop)
-
 #include "Core/Window.h"
 #include "Core/Log.h"
+
 #include "Event/Event.h"
 
+#include "Renderer/Renderer.h"
+
+#include "UI/UI.h"
+
+#include <stdlib.h>
+
 static int s_Running = 1;
+
+static float s_LastFrameTime = 0.0f;
 
 int InitApplication(const char* title, int width, int height)
 {
@@ -24,6 +28,9 @@ int InitApplication(const char* title, int width, int height)
 	SetWindowEventCallback(OnEventApplication);
 
 	LSH_TRACE("Application created");
+    
+    InitRenderer();
+    InitUI();
 
     return 1;
 }
@@ -32,18 +39,35 @@ void RunApplication()
 {
     while (s_Running)
 	{
-		OnUpdateWindow();
+		float deltaTime = GetTimeWindow();
+		deltaTime -= s_LastFrameTime;
+        s_LastFrameTime = GetTimeWindow();
+
+        deltaTime *= 1000.f;
+
+		OnUpdateWindow(deltaTime);
+
+		BeginRendering();
+
+        OnUpdateRenderer(deltaTime);
+		OnUpdateUI(deltaTime);
+
+        EndRendering();
+
+        RenderUI();
+
+		//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)"; DeltaTime, 1000.0f / deltaTime);
     }
 }
 
-void OnEventApplication(void* event)
-{
-	Event* e = (Event*)event;
-    
-	WindowLogEvent(e);
-	DispatchEvent(EventTypeWindowClose, e, OnEventWindowClose);
+void OnEventApplication(Event* event)
+{    
+	//WindowLogEvent(event);
+	DispatchEvent(EventTypeWindowClose, event, OnEventWindowClose);
 
-    free(e->Data);
+    OnEventUI(event);
+
+    free(event->Data);
 }
 
 int OnEventWindowClose(Event* event)

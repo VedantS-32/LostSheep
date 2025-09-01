@@ -6,7 +6,7 @@ int InitApplication(const char* title, int width, int height);
 
 void RunApplication();
 
-void OnEventApplication(void* event);
+void OnEventApplication(Event* event);
 
 int OnEventWindowClose(Event* event);
 

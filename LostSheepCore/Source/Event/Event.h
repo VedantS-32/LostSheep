@@ -4,10 +4,6 @@
 
 #define EVENT_TYPE_STRING(eventType) #eventType
 
-typedef void (*EventCallbackHandlefn)(void* Event);
-
-typedef int (*EventCallbackfn)(void* Event);
-
 typedef enum EventType
 {
 	None = 0,
@@ -24,5 +20,9 @@ typedef struct Event
 
 	int Handled;
 } Event;
+
+typedef void (*EventCallbackHandlefn)(Event* event);
+
+typedef int (*EventCallbackfn)(Event* event);
 
 int DispatchEvent(EventType type, Event* event, EventCallbackfn callback);

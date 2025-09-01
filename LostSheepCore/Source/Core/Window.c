@@ -85,7 +85,7 @@ int CreateWindow(const char* title, int width, int height)
 	return 1;
 }
 
-const GLFWwindow* GetNativeWindow()
+GLFWwindow* GetNativeWindow()
 {
 	return s_WindowHandle;
 }
@@ -95,12 +95,15 @@ const WindowData* GetWindowData()
 	return &s_WindowData;
 }
 
-void OnUpdateWindow()
+const float GetTimeWindow()
+{
+	return (float)glfwGetTime();
+}
+
+void OnUpdateWindow(float deltaTime)
 {
 	glfwGetFramebufferSize(s_WindowHandle, &s_WindowData.Width, &s_WindowData.Height);
 	glViewport(0, 0, s_WindowData.Width, s_WindowData.Height);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(1.00f, 0.51f, 0.65f, 1.0f);
 
 	glfwSwapBuffers(s_WindowHandle);
 

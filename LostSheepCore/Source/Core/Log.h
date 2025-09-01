@@ -1,5 +1,7 @@
 #pragma once
 
+#define ENUM_TO_STRING(enum) #enum
+
 void LogTrace(const char* fmt, ...);
 void LogInfo(const char* fmt, ...);
 void LogWarn(const char* fmt, ...);
