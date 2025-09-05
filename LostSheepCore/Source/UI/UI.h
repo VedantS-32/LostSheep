@@ -21,4 +21,6 @@ int OnMouseMoveUI(Event* event);
 
 int OnMouseScrollUI(Event* event);
 
+int OnKeyPressUI(Event* event);
+
 void ShutdownUI();

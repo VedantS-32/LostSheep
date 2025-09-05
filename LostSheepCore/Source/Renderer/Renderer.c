@@ -1,48 +1,59 @@
-#include "Renderer.h"
+﻿#include "Renderer.h"
 
 #include "Core/Log.h"
+#include "Core/Window.h"
+#include "Event/Event.h"
+#include "Renderer/Shader.h"
 
 #include "glad/glad.h"
+
+#include "cglm/cglm.h"
 
 #pragma warning(push, 0)
 #include "clay.h"
 #pragma warning(pop)
 
-float vertices[] = {
-     0.5f,  0.5f, 0.0f,  // top right
-     0.5f, -0.5f, 0.0f,  // bottom right
-    -0.5f, -0.5f, 0.0f,  // bottom left
-    -0.5f,  0.5f, 0.0f   // top left 
+static int s_ZIndex = 0;
+
+static float vertices[] = {
+     1.0f,  1.0f,  // top right
+     1.0f,  0.0f,  // bottom right
+     0.0f,  0.0f,  // bottom left
+     0.0f,  1.0f,  // top left
 };
-unsigned int indices[] = {  // note that we start from 0!
+static unsigned int indices[] = {  // note that we start from 0!
     0, 1, 3,   // first triangle
     1, 2, 3    // second triangle
 };
-const char* vertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
 
-const char* fragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"    FragColor = vec4(1.00f, 0.51f, 0.65f, 1.0f);\n"
-"}\0";
+static unsigned int VAO;
+static unsigned int VBO;
+static unsigned int IBO;
 
+static float s_ZNear = -1000.0f;
+static float s_ZFar = 1000.0f;
 
-unsigned int VAO;
-unsigned int VBO;
-unsigned int IBO;
+static mat4 s_ProjectionMatrix;
+static mat4 s_ViewMatrix;
+static mat4 s_ViewProjectionMatrix;
 
-unsigned int vertexShader;
-unsigned int fragmentShader;
-unsigned int shaderProgram;
+static int OnWindowResize(Event* event)
+{
+    int width = ((int*)event->Data)[0];
+    int height = ((int*)event->Data)[1];
+
+    glm_mat4_identity(s_ViewMatrix);
+    glm_ortho(0.0f, (float)width, (float)height, 0.0f, s_ZNear, s_ZFar, s_ProjectionMatrix);
+    glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
+
+	glViewport(0, 0, width, height);
+    return 0;
+}
 
 void InitRenderer()
 {
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
 
     glCreateVertexArrays(1, &VAO);
@@ -57,49 +68,26 @@ void InitRenderer()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    int  success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        LSH_ERROR("SHADER::VERTEX::COMPILATION_FAILED, %s", infoLog);
-    }
-
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        LSH_ERROR("SHADER::FRAGMENT::COMPILATION_FAILED, %s", infoLog);
-    }
-
-    shaderProgram = glCreateProgram();
-
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glUseProgram(shaderProgram);
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+    InitShaders();
+
+	const WindowData* windowData = GetWindowData();
+	glViewport(0, 0, windowData->Width, windowData->Height);
+    glm_mat4_identity(s_ViewMatrix);
+    glm_ortho(0.0f, (float)windowData->Width, (float)windowData->Height, 0.0f, s_ZNear, s_ZFar, s_ProjectionMatrix);
+
+	glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
+
+	UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
 }
 
 void BeginRendering()
 {
+    s_ZIndex = 0;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -109,12 +97,24 @@ void EndRendering()
 
 void OnUpdateRenderer(float deltaTime)
 {
+    const WindowData* windowData = GetWindowData();
+
+    glm_ortho(0.0f, (float)windowData->Width, (float)windowData->Height, 0.0f, s_ZNear, s_ZFar, s_ProjectionMatrix);
+    glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
+	UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+}
+
+void OnEventRenderer(Event* event)
+{
+	DispatchEvent(EventTypeWindowResize, event, OnWindowResize);
 }
 
 void RenderRectangle(Clay_RenderCommand* cmd)
 {
+    const WindowData* windowData = GetWindowData();
+
     Clay_BoundingBox bbox = cmd->boundingBox;
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    Clay_BorderRenderData border = cmd->renderData.border;
 
     // Draw rectangle with background color and corner radius
     //DrawRectangleRounded(
@@ -124,6 +124,18 @@ void RenderRectangle(Clay_RenderCommand* cmd)
     //    config->cornerRadius,
     //    config->backgroundColor
     //);
+
+ //   LSH_TRACE("RenderRectangle: (%.2f, %.2f, %.2f, %.2f) Color: (%.2f, %.2f, %.2f, %.2f)", bbox.x, bbox.y, bbox.width, bbox.height,
+	//	border.color.r, border.color.g, border.color.b, border.color.a);
+
+	//LSH_ERROR("Z-Index: %d", s_ZIndex);
+
+	vec4 color = {border.color.r, border.color.g, border.color.b, border.color.a};
+
+    UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
+	UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
+    UploadUniform4f("uColor", &color);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
 void RenderRectangleRounded(Clay_RenderCommand* cmd)

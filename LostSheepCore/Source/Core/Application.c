@@ -63,9 +63,11 @@ void RunApplication()
 void OnEventApplication(Event* event)
 {    
 	//WindowLogEvent(event);
+
 	DispatchEvent(EventTypeWindowClose, event, OnEventWindowClose);
 
     OnEventUI(event);
+	OnEventRenderer(event);
 
     free(event->Data);
 }

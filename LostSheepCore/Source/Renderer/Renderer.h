@@ -2,6 +2,8 @@
 
 typedef struct Clay_RenderCommand Clay_RenderCommand;
 
+typedef struct Event Event;
+
 void InitRenderer();
 
 void BeginRendering();
@@ -9,6 +11,8 @@ void BeginRendering();
 void EndRendering();
 
 void OnUpdateRenderer(float deltaTime);
+
+void OnEventRenderer(Event* event);
 
 void RenderRectangle(Clay_RenderCommand* cmd);
 
