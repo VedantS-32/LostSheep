@@ -2,6 +2,7 @@
 
 #include "Core/Window.h"
 #include "Core/Log.h"
+#include "Core/Input.h"
 
 #include "Event/Event.h"
 
@@ -17,6 +18,9 @@
 
 static float s_DeltaTime = 16.66f;
 
+double s_xPos = 0.0f;
+double s_yPos = 0.0f;
+
 static const char* ClayCommandTypeToString(Clay_RenderCommandType type) {
     switch (type) {
     case CLAY_RENDER_COMMAND_TYPE_RECTANGLE: return "RECTANGLE";
@@ -30,6 +34,12 @@ static const char* ClayCommandTypeToString(Clay_RenderCommandType type) {
     }
 }
 
+static void HandleOnClickElement(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
+{
+    if(IsMouseButtonPressed(LSH_MOUSE_BUTTON_LEFT))
+	    LSH_INFO("Clicked on element, Data: %s", (const char*)userData);
+}
+
 static void HandleClayErrors(Clay_ErrorData errorData)
 {
     LSH_ERROR("Type: %s; Msg: %s", ENUM_TO_STRING(errorData.errorType), errorData.errorText.chars);
@@ -40,9 +50,14 @@ static inline Clay_Dimensions MeasureText(Clay_StringSlice text, Clay_TextElemen
     // Note: Clay_String->chars is not guaranteed to be null terminated
 	LSH_TRACE("MeasureText: %.2fx%.2f", text.length * config->fontSize, config->fontSize);
     return (Clay_Dimensions) {
-        .width = (float)(text.length) * config->fontSize, // <- this will only work for monospace fonts, see the renderers/ directory for more advanced text measurement
+        .width = (float)(text.length) * config->fontSize,
             .height = (float)(config->fontSize)
     };
+}
+
+static void UpdatePointerState()
+{
+    Clay_SetPointerState((Clay_Vector2) { GetMouseX(), GetMouseY() }, IsMouseButtonPressed(LSH_MOUSE_BUTTON_LEFT));
 }
 
 void InitUI()
@@ -60,7 +75,7 @@ void InitUI()
 
     double mouseX, mouseY;
     int isMouseDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-    glfwGetCursorPos(window, &mouseX, &mouseY);
+    glfwGetCursorPos(window,&mouseX, &mouseY);
     Clay_SetPointerState((Clay_Vector2) { (float)mouseX, (float)mouseY }, isMouseDown);
 
     Clay_UpdateScrollContainers(true, (Clay_Vector2) { 0.0f, 0.0f }, s_DeltaTime);
@@ -72,18 +87,19 @@ void OnUpdateUI(float deltaTime)
 {
 	s_DeltaTime = deltaTime;
 
-    // Layout
     Clay_BeginLayout();
     BuildUI();
     Clay_RenderCommandArray commands = Clay_EndLayout();
 
     ProcessRenderUICommands(commands);
+
+    UpdatePointerState();
 }
 
 void OnEventUI(Event* event)
 {
 	DispatchEvent(EventTypeWindowResize, event, OnResizeWindowUI);
-	DispatchEvent(EventTypeMouseMoved, event, OnMouseMoveUI);
+	//DispatchEvent(EventTypeMouseMoved, event, OnMouseMoveUI);         // Updating in UpdatePointerState();
 	DispatchEvent(EventTypeMouseScrolled, event, OnMouseScrollUI);
 	DispatchEvent(EventTypeKeyPressed, event, OnKeyPressUI);
 }
@@ -91,29 +107,43 @@ void OnEventUI(Event* event)
 void BuildUI()
 {
     CLAY({ .id = CLAY_ID("OuterContainer"),
-           .backgroundColor = {0.25f, 0.25f, 0.25f, 1.0f},
+           .backgroundColor = (Clay_Color){0.25f, 0.25f, 0.25f, 1.0f},
         .layout = {
                 .layoutDirection = CLAY_TOP_TO_BOTTOM,
                 .sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
                 .padding = CLAY_PADDING_ALL(16),
-                .childGap = 16.0f
+                .childGap = 16
         }
         })
     {
         CLAY({ .id = CLAY_ID("Header") ,
-			   .backgroundColor = {1.0f, 0.6f, 0.7f, 1.0f},
+               .backgroundColor = (Clay_Color) { 0.92f, 0.51f, !Clay_Hovered() ? 0.62f : 0.8f, 1.0f },
+               .cornerRadius = CLAY_CORNER_RADIUS(8.0f),
+			   .border.width = CLAY_BORDER_ALL(Clay_Hovered() ? 2 : 0),
+			   .border.color = (Clay_Color){0.8f, 0.8f, 0.8f, 1.0f},
                .layout = {
                    .sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_PERCENT(0.15f)},
                    .padding = CLAY_PADDING_ALL(16)
             }
-            }) {}
+            })
+            {
+            }
         CLAY({ .id = CLAY_ID("Header2") ,
-               .backgroundColor = {0.6f, 0.6f, 1.0f, 1.0f},
+               .backgroundColor = (Clay_Color){0.6f, 0.6f, 1.0f, 1.0f},
                .layout = {
                    .sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
                    .padding = CLAY_PADDING_ALL(16)
                    }
-            }) {}
+            })
+        {
+            Clay_OnHover(HandleOnClickElement, "Lost Sheep");
+        }
+    }
+
+    bool isHovered = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("Header")));
+    if (isHovered && IsMouseButtonPressed(LSH_MOUSE_BUTTON_MIDDLE))
+    {
+        LSH_WARN("Handling input example");
     }
 }
 
@@ -168,21 +198,19 @@ int OnResizeWindowUI(Event* event)
 
 int OnMouseMoveUI(Event* event)
 {
-    GLFWwindow* window = GetNativeWindow();
+    s_xPos = ((double*)event->Data)[0];
+    s_yPos = ((double*)event->Data)[1];
 
-    float xPos = ((float*)event->Data)[0];
-    float yPos = ((float*)event->Data)[1];
-    int isMouseDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-    Clay_SetPointerState((Clay_Vector2) { xPos, yPos }, isMouseDown);
+    Clay_SetPointerState((Clay_Vector2) { (float)s_xPos, (float)s_yPos }, IsMouseButtonPressed(LSH_MOUSE_BUTTON_LEFT));
 
     return 1;
 }
 
 int OnMouseScrollUI(Event* event)
 {
-    float xOffset = ((float*)event->Data)[0];
-    float yOffset = ((float*)event->Data)[1];
-    Clay_UpdateScrollContainers(true, (Clay_Vector2) { xOffset, yOffset }, s_DeltaTime);
+    double xOffset = ((double*)event->Data)[0];
+    double yOffset = ((double*)event->Data)[1];
+    Clay_UpdateScrollContainers(true, (Clay_Vector2) { (float)xOffset, (float)yOffset }, s_DeltaTime);
     return 1;
 }
 
@@ -190,7 +218,7 @@ int OnKeyPressUI(Event* event)
 {
     if(*((int*)event->Data) == GLFW_KEY_R)
     {
-        CompileShaders();
+        RecompileShader("Rectangle.glsl");
         return 1;
 	}
     return 0;

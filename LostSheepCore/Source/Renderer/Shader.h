@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cglm/types.h"
+#include <stdint.h>
 
 typedef struct UniformInfo
 {
@@ -8,9 +9,21 @@ typedef struct UniformInfo
 	int Location;
 } UniformInfo;
 
+typedef struct Shader
+{
+	char* Name;
+	char* Path;
+
+	uint32_t UniformCount;
+	UniformInfo Uniforms[16];
+
+	uint32_t RendererID;
+} Shader;
+
 void InitShaders();
 
-void CompileShaders();
+uint32_t CompileShader(const char* path);
+int RecompileShader(const char* name);
 
 void UploadUniform1i(const char* name, int v0);
 void UploadUniform2i(const char* name, const ivec2* v0);

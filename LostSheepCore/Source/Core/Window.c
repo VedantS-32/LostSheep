@@ -177,6 +177,7 @@ void WindowResizeCallback(GLFWwindow* window, int width, int height)
 	event.Data = (void*)malloc(sizeof(ivec2));
 	glm_ivec2_copy((ivec2){ width, height }, *(ivec2*)event.Data);
 	event.Size = sizeof(ivec2);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -189,6 +190,7 @@ void WindowCloseCallback(GLFWwindow* window)
 	event.Type = EventTypeWindowClose;
 	event.Data = NULL;
 	event.Size = 0;
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -202,6 +204,7 @@ void WindowPositionCallback(GLFWwindow* window, int xPos, int yPos)
 	event.Data = (void*)malloc(sizeof(ivec2));
 	glm_ivec2_copy((ivec2) { xPos, yPos }, * (ivec2*)event.Data);
 	event.Size = sizeof(ivec2);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -229,6 +232,7 @@ void WindowKeyCallback(GLFWwindow* window, int key, int scancode, int action, in
 	((int*)event.Data)[1] = scancode;
 	((int*)event.Data)[2] = action;
 	event.Size = 3 * sizeof(int);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -242,6 +246,7 @@ void WindowCharacterCallback(GLFWwindow* window, unsigned int keycode)
 	event.Data = (void*)malloc(sizeof(unsigned int));
 	((unsigned int*)event.Data)[0] = keycode;
 	event.Size = sizeof(unsigned int);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -268,6 +273,7 @@ void WindowMouseButtonCallback(GLFWwindow* window, int button, int action, int m
 	((int*)event.Data)[0] = button;
 	((int*)event.Data)[1] = action;
 	event.Size = 2 * sizeof(int);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -282,6 +288,7 @@ void WindowCursorPositionCallback(GLFWwindow* window, double xPos, double yPos)
 	((double*)event.Data)[0] = xPos;
 	((double*)event.Data)[1] = yPos;
 	event.Size = 2 * sizeof(double);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }
@@ -296,6 +303,7 @@ void WindowScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
 	((double*)event.Data)[0] = xOffset;
 	((double*)event.Data)[1] = yOffset;
 	event.Size = 2 * sizeof(double);
+	event.Handled = 0;
 
 	data->EventCallback(&event);
 }

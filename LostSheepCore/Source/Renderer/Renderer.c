@@ -16,10 +16,11 @@
 static int s_ZIndex = 0;
 
 static float vertices[] = {
-     1.0f,  1.0f,  // top right
-     1.0f,  0.0f,  // bottom right
-     0.0f,  0.0f,  // bottom left
-     0.0f,  1.0f,  // top left
+    // Coords    // TexCoords
+     1.0f,  1.0f, 1.0f,  1.0f,  // top right
+     1.0f,  0.0f, 1.0f,  0.0f,  // bottom right
+     0.0f,  0.0f, 0.0f,  0.0f,  // bottom left
+     0.0f,  1.0f, 0.0f,  1.0f,  // top left
 };
 static unsigned int indices[] = {  // note that we start from 0!
     0, 1, 3,   // first triangle
@@ -68,8 +69,10 @@ void InitRenderer()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
@@ -114,27 +117,15 @@ void RenderRectangle(Clay_RenderCommand* cmd)
     const WindowData* windowData = GetWindowData();
 
     Clay_BoundingBox bbox = cmd->boundingBox;
-    Clay_BorderRenderData border = cmd->renderData.border;
-
-    // Draw rectangle with background color and corner radius
-    //DrawRectangleRounded(
-    //    (Rectangle) {
-    //    bbox.x, bbox.y, bbox.width, bbox.height
-    //},
-    //    config->cornerRadius,
-    //    config->backgroundColor
-    //);
-
- //   LSH_TRACE("RenderRectangle: (%.2f, %.2f, %.2f, %.2f) Color: (%.2f, %.2f, %.2f, %.2f)", bbox.x, bbox.y, bbox.width, bbox.height,
-	//	border.color.r, border.color.g, border.color.b, border.color.a);
-
-	//LSH_ERROR("Z-Index: %d", s_ZIndex);
-
-	vec4 color = {border.color.r, border.color.g, border.color.b, border.color.a};
+    Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
+    
+    vec4 color = { rectangle.backgroundColor.r,   rectangle.backgroundColor.g,  rectangle.backgroundColor.b,  rectangle.backgroundColor.a};
 
     UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
 	UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
     UploadUniform4f("uColor", &color);
+    UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
+    UploadUniform1f("uBorderThickness", 0.0f);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
@@ -144,6 +135,28 @@ void RenderRectangleRounded(Clay_RenderCommand* cmd)
 
 void RenderBorder(Clay_RenderCommand* cmd)
 {
+    const WindowData* windowData = GetWindowData();
+
+    Clay_BoundingBox bbox = cmd->boundingBox;
+    Clay_BorderRenderData border = cmd->renderData.border;
+    Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
+    
+	vec4 color = { 1.0f, 0.0f, 1.0f, 1.0f };
+
+    if (rectangle.cornerRadius.topRight > 0.0f)
+    {
+        color[0] = border.color.r;
+        color[1] = border.color.g;
+        color[2] = border.color.b;
+        color[3] = border.color.a;
+    }
+
+    UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
+    UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
+    UploadUniform4f("uColor", &color);
+    UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
+    UploadUniform1f("uBorderThickness", border.width.top);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
 void RenderText(Clay_RenderCommand* cmd)

@@ -10,9 +10,16 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static UniformInfo* s_Uniforms[32];
-static int s_UniformsCount = 0;
-static unsigned int shaderProgram;
+static Shader* s_Shaders[16];
+static uint32_t s_ShadersCount = 0;
+
+static Shader* s_ActiveShader = NULL;
+
+static const char* s_ShadersPaths[] = {
+	"Content/Shader/Rectangle.glsl"
+};
+
+static uint32_t s_ShaderPathCount = 1;
 
 static char* ReadFile(const char* path)
 {
@@ -49,45 +56,57 @@ static char* ReadFile(const char* path)
 	return buffer;
 }
 
+static Shader* GetShaderByName(const char* name)
+{
+	for(uint32_t i = 0; i < s_ShadersCount; i++)
+	{
+		if (s_Shaders[i] == NULL)
+			continue;
+		if (strcmp(s_Shaders[i]->Name, name) == 0)
+			return s_Shaders[i];
+	}
+
+	LSH_WARN("Could not find shader: %s", name);
+
+	return NULL;
+}
+
 static int GetUniformLocation(const char* name)
 {
-	for(int i = 0; i < s_UniformsCount; i++)
+	uint32_t* uniformCount = &(s_ActiveShader->UniformCount);
+	UniformInfo* uniforms = s_ActiveShader->Uniforms;
+	for(uint32_t i = 0; i < *uniformCount; i++)
 	{
-		if (strcmp(s_Uniforms[i]->Name, name) == 0)
+		if (strcmp(uniforms[i].Name, name) == 0)
 		{
-			return s_Uniforms[i]->Location;
+			return uniforms[i].Location;
 		}
 	}
 
-	int location = glGetUniformLocation(shaderProgram, name);
+	int location = glGetUniformLocation(s_ActiveShader->RendererID, name);
 	if (location == -1)
 	{
 		LSH_WARN("Could not find uniform: %s", name);
 		return -1;
 	}
 
-	if (s_UniformsCount >= 32)
+	if (*uniformCount >= 16)
 	{
-		LSH_FATAL("Too many uniforms, increase the size of the s_Uniforms array");
+		LSH_FATAL("Too many uniforms, increase the size of the Shader.Uniforms array");
 		return -1;
 	}
-    UniformInfo* info = (UniformInfo*)(malloc(sizeof(UniformInfo)));
-    if (info == NULL)
-    {
-        LSH_FATAL("Failed to allocate memory for UniformInfo");
-        return -1;
-    }
-    info->Name = _strdup(name);
-    if (info->Name == NULL)
-    {
-        LSH_FATAL("Failed to allocate memory for UniformInfo Name");
-        free(info);
-        return -1;
-    }
 
-	info->Location = location;
-	s_Uniforms[s_UniformsCount] = info;
-	s_UniformsCount++;
+	UniformInfo* uniform = &(uniforms[*uniformCount]);
+	uniform->Location = location;
+	uniform->Name = _strdup(name);
+
+	if (uniform->Name == NULL)
+	{
+		LSH_FATAL("Failed to allocate memory for UniformInfo Name");
+		return -1;
+	}
+
+	(*uniformCount)++;
 
 	return location;
 }
@@ -127,33 +146,60 @@ static void ParseShader(const char* path, char** vertexSource, char** fragmentSo
 	free((void*)source);
 }
 
-static void InvalidateUniforms()
+static void InvalidateUniforms(const char* shaderName)
 {
-	for(int i = 0; i < s_UniformsCount; i++)
+	Shader* shader = GetShaderByName(shaderName);
+	if (shader == NULL)
+		return;
+
+	for(uint32_t i = 0; i < shader->UniformCount; i++)
 	{
-		free(s_Uniforms[i]->Name);
-		free(s_Uniforms[i]);
+		free(shader->Uniforms[i].Name);
 	}
-	s_UniformsCount = 0;
+	shader->UniformCount = 0;
 }
 
 void InitShaders()
 {
-	CompileShaders();
-}
-
-void CompileShaders()
-{
-	if(shaderProgram != 0)
+	for (uint32_t i = 0; i < s_ShaderPathCount; i++)
 	{
-		glDeleteProgram(shaderProgram);
-		InvalidateUniforms();
+		uint32_t rendererID = CompileShader(s_ShadersPaths[i]);
+
+		if (rendererID <= 0)
+		{
+			LSH_FATAL("Failed to compile shader: %s", s_ShadersPaths[i]);
+			continue;
+		}
+		Shader* shader = (Shader*)malloc(sizeof(Shader));
+		if (shader == NULL)
+		{
+			LSH_FATAL("Failed to allocate memory for Shader");
+			continue;
+		}
+		memset(shader, 0, sizeof(Shader));
+		const char* path = s_ShadersPaths[i];
+		const char* name = strrchr(path, '/');
+		if (name == NULL)
+			name = path;
+		else
+			name++; // Skip the '/'
+		shader->Name = _strdup(name);
+		shader->Path = _strdup(path);
+		shader->RendererID = rendererID;
+		shader->UniformCount = 0;
+		memset(shader->Uniforms, 0, sizeof(shader->Uniforms));
+		s_Shaders[s_ShadersCount] = shader;
+
+		s_ShadersCount++;
 	}
 
+	s_ActiveShader = s_Shaders[0];
+}
+
+uint32_t CompileShader(const char* path)
+{
 	char* vertexSource = NULL;
 	char* fragmentSource = NULL;
-
-	const char* path = "Content/Shader/Rectangle.glsl";
 
 	uint32_t vertexShader;
 	uint32_t fragmentShader;
@@ -166,7 +212,7 @@ void CompileShaders()
 	if (vertexSource == NULL || fragmentSource == NULL)
 	{
 		LSH_FATAL("Failed to load shader sources");
-		return;
+		return 0;
 	}
 
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -180,6 +226,8 @@ void CompileShaders()
 	{
 		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
 		LSH_ERROR("SHADER::VERTEX::COMPILATION_FAILED, %s", infoLog);
+
+		return 0;
 	}
 
 	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -191,9 +239,11 @@ void CompileShaders()
 	{
 		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
 		LSH_ERROR("SHADER::FRAGMENT::COMPILATION_FAILED, %s", infoLog);
+
+		return 0;
 	}
 
-	shaderProgram = glCreateProgram();
+	uint32_t shaderProgram = glCreateProgram();
 
 	glAttachShader(shaderProgram, vertexShader);
 	glAttachShader(shaderProgram, fragmentShader);
@@ -208,6 +258,26 @@ void CompileShaders()
 
 	free(vertexSource);
 	free(fragmentSource);
+
+	return shaderProgram;
+}
+
+int RecompileShader(const char* name)
+{
+	Shader* shader = GetShaderByName(name);
+	if (shader == NULL)
+	{
+		LSH_ERROR("Could not find shader to recompile: %s", name);
+		return 0;
+	}
+	uint32_t newRendererID = CompileShader(shader->Path);
+	if (newRendererID == 0)
+	{
+		LSH_ERROR("Failed to recompile shader: %s", name);
+		return 0;
+	}
+	shader->RendererID = newRendererID;
+	return 1;
 }
 
 void UploadUniform1i(const char* name, int value)
@@ -308,10 +378,17 @@ void UploadUniformMat4f(const char* name, const mat4* matrix)
 
 void ShutdownShaders()
 {
-	for (int i = 0; i < s_UniformsCount; i++)
+	for(uint32_t i = 0; i < s_ShadersCount; i++)
 	{
-		free(s_Uniforms[i]->Name);
-		free(s_Uniforms[i]);
+		if (s_Shaders[i] == NULL)
+			continue;
+		glDeleteProgram(s_Shaders[i]->RendererID);
+		free(s_Shaders[i]->Name);
+		free(s_Shaders[i]->Path);
+		for(uint32_t j = 0; j < s_Shaders[i]->UniformCount; j++)
+		{
+			free(s_Shaders[i]->Uniforms[j].Name);
+		}
+		free(s_Shaders[i]);
 	}
-	s_UniformsCount = 0;
 }
