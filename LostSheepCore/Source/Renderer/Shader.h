@@ -3,6 +3,14 @@
 #include "cglm/types.h"
 #include <stdint.h>
 
+typedef enum UIShaderType
+{
+	UIShaderType_Rectangle = 0,
+	UIShaderType_Image,
+	UIShaderType_Text,
+
+} UIShaderType;
+
 typedef struct UniformInfo
 {
 	char* Name;
@@ -13,6 +21,7 @@ typedef struct Shader
 {
 	char* Name;
 	char* Path;
+	UIShaderType uiShaderType;
 
 	uint32_t UniformCount;
 	UniformInfo Uniforms[16];
@@ -20,10 +29,12 @@ typedef struct Shader
 	uint32_t RendererID;
 } Shader;
 
-void InitShaders();
+void InitShader();
 
 uint32_t CompileShader(const char* path);
 int RecompileShader(const char* name);
+
+void SetActiveShader(UIShaderType uiShaderType);
 
 void UploadUniform1i(const char* name, int v0);
 void UploadUniform2i(const char* name, const ivec2* v0);
@@ -38,4 +49,4 @@ void UploadUniform4f(const char* name, const vec4* v0);
 void UploadUniformMat3f(const char* name, const mat3* matrix);
 void UploadUniformMat4f(const char* name, const mat4* matrix);
 
-void ShutdownShaders();
+void ShutdownShader();

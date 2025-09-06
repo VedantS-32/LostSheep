@@ -37,6 +37,8 @@ void WindowLogEvent(Event* event);
 // Events
 void SetWindowEventCallback(EventCallbackHandlefn callback);
 
+void WindowRefreshCallback(GLFWwindow* window);
+
 void WindowResizeCallback(GLFWwindow* window, int width, int height);
 
 void WindowCloseCallback(GLFWwindow* window);

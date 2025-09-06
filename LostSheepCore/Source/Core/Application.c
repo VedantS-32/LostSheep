@@ -7,8 +7,6 @@
 
 #include "Renderer/Renderer.h"
 
-#include "UI/UI.h"
-
 #include <stdlib.h>
 
 static int s_Running = 1;
@@ -30,7 +28,6 @@ int InitApplication(const char* title, int width, int height)
 	LSH_TRACE("Application created");
     
     InitRenderer();
-    InitUI();
 
     return 1;
 }
@@ -48,15 +45,10 @@ void RunApplication()
 		OnUpdateWindow(deltaTime);
 
 		BeginRendering();
-
         OnUpdateRenderer(deltaTime);
-		OnUpdateUI(deltaTime);
-
         EndRendering();
 
-        RenderUI();
-
-		//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)"; DeltaTime, 1000.0f / deltaTime);
+		//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)", deltaTime, 1000.0f / deltaTime);
     }
 }
 
@@ -66,7 +58,6 @@ void OnEventApplication(Event* event)
 
 	DispatchEvent(EventTypeWindowClose, event, OnEventWindowClose);
 
-    OnEventUI(event);
 	OnEventRenderer(event);
 
     free(event->Data);
@@ -86,5 +77,6 @@ void CloseApplication()
 
 void ShutdownApplication()
 {
+    ShutdownRenderer();
     LSH_INFO("Application shut down");
 }

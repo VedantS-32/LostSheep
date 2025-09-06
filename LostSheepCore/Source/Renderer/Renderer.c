@@ -2,8 +2,13 @@
 
 #include "Core/Log.h"
 #include "Core/Window.h"
+
 #include "Event/Event.h"
+
 #include "Renderer/Shader.h"
+#include "Renderer/Texture.h"
+
+#include "UI/UI.h"
 
 #include "glad/glad.h"
 
@@ -42,7 +47,6 @@ static int OnWindowResize(Event* event)
 {
     int width = ((int*)event->Data)[0];
     int height = ((int*)event->Data)[1];
-
     glm_mat4_identity(s_ViewMatrix);
     glm_ortho(0.0f, (float)width, (float)height, 0.0f, s_ZNear, s_ZFar, s_ProjectionMatrix);
     glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
@@ -76,7 +80,8 @@ void InitRenderer()
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
-    InitShaders();
+    InitShader();
+    InitTexture();
 
 	const WindowData* windowData = GetWindowData();
 	glViewport(0, 0, windowData->Width, windowData->Height);
@@ -86,6 +91,10 @@ void InitRenderer()
 	glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
 
 	UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+
+    InitUI();
+
+    LSH_TRACE("Renderer initialized");
 }
 
 void BeginRendering()
@@ -105,16 +114,19 @@ void OnUpdateRenderer(float deltaTime)
     glm_ortho(0.0f, (float)windowData->Width, (float)windowData->Height, 0.0f, s_ZNear, s_ZFar, s_ProjectionMatrix);
     glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
 	UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+
+    OnUpdateUI(deltaTime);
 }
 
 void OnEventRenderer(Event* event)
 {
 	DispatchEvent(EventTypeWindowResize, event, OnWindowResize);
+    OnEventUI(event);
 }
 
 void RenderRectangle(Clay_RenderCommand* cmd)
 {
-    const WindowData* windowData = GetWindowData();
+    SetActiveShader(UIShaderType_Rectangle);
 
     Clay_BoundingBox bbox = cmd->boundingBox;
     Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
@@ -135,7 +147,7 @@ void RenderRectangleRounded(Clay_RenderCommand* cmd)
 
 void RenderBorder(Clay_RenderCommand* cmd)
 {
-    const WindowData* windowData = GetWindowData();
+    SetActiveShader(UIShaderType_Rectangle);
 
     Clay_BoundingBox bbox = cmd->boundingBox;
     Clay_BorderRenderData border = cmd->renderData.border;
@@ -161,10 +173,37 @@ void RenderBorder(Clay_RenderCommand* cmd)
 
 void RenderText(Clay_RenderCommand* cmd)
 {
+    SetActiveShader(UIShaderType_Text);
 }
 
 void RenderImage(Clay_RenderCommand* cmd)
 {
+    SetActiveShader(UIShaderType_Image);
+
+    Clay_BoundingBox bbox = cmd->boundingBox;
+    Clay_ImageRenderData image = cmd->renderData.image;
+    Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
+
+    int textureRendererID = *((TextureName*)(image.imageData));
+    BindActiveTexture(textureRendererID, 0);
+
+    //vec4 backgroundColor = { 1.0f, 0.0f, 1.0f, 1.0f };
+
+    //if (image.cornerRadius.topRight > 0.0f)
+    //{
+    //    backgroundColor[0] = image.backgroundColor.r;
+    //    backgroundColor[1] = image.backgroundColor.g;
+    //    backgroundColor[2] = image.backgroundColor.b;
+    //    backgroundColor[3] = image.backgroundColor.a;
+    //}
+
+    UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
+    UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
+    UploadUniform1i("uTexture", textureRendererID);
+    UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    //SetActiveShader(UIShaderType_Rectangle);
 }
 
 void StartClipping(Clay_RenderCommand* cmd)
@@ -181,4 +220,9 @@ void RenderCustomElement(Clay_RenderCommand* cmd)
 
 void ShutdownRenderer()
 {
+    ShutdownUI();
+    ShutdownTexture();
+    ShutdownShader();
+
+    LSH_TRACE("Shutdown renderer");
 }

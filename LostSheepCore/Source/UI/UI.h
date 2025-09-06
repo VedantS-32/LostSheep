@@ -23,6 +23,4 @@ int OnMouseScrollUI(Event* event);
 
 int OnKeyPressUI(Event* event);
 
-int OnMouseClickedUI(Event* event);
-
 void ShutdownUI();

@@ -15,11 +15,13 @@ static uint32_t s_ShadersCount = 0;
 
 static Shader* s_ActiveShader = NULL;
 
+// Must be in the serial of Rectangle, Image, Text; as UIShaderType enum
 static const char* s_ShadersPaths[] = {
-	"Content/Shader/Rectangle.glsl"
+	"Content/Shader/Rectangle.glsl",
+	"Content/Shader/Texture.glsl"
 };
 
-static uint32_t s_ShaderPathCount = 1;
+static uint32_t s_ShaderPathCount = 2;
 
 static char* ReadFile(const char* path)
 {
@@ -54,6 +56,11 @@ static char* ReadFile(const char* path)
 	}
 
 	return buffer;
+}
+
+static Shader* GetShaderByUIShaderType(UIShaderType uiShaderType)
+{
+	return s_Shaders[uiShaderType];
 }
 
 static Shader* GetShaderByName(const char* name)
@@ -159,7 +166,7 @@ static void InvalidateUniforms(const char* shaderName)
 	shader->UniformCount = 0;
 }
 
-void InitShaders()
+void InitShader()
 {
 	for (uint32_t i = 0; i < s_ShaderPathCount; i++)
 	{
@@ -185,15 +192,19 @@ void InitShaders()
 			name++; // Skip the '/'
 		shader->Name = _strdup(name);
 		shader->Path = _strdup(path);
+		shader->uiShaderType = (UIShaderType)i;
 		shader->RendererID = rendererID;
 		shader->UniformCount = 0;
 		memset(shader->Uniforms, 0, sizeof(shader->Uniforms));
 		s_Shaders[s_ShadersCount] = shader;
 
 		s_ShadersCount++;
+
+		LSH_TRACE("Shader program compiled; Path: %s", path);
 	}
 
 	s_ActiveShader = s_Shaders[0];
+	glUseProgram(s_ActiveShader->RendererID);
 }
 
 uint32_t CompileShader(const char* path)
@@ -251,8 +262,6 @@ uint32_t CompileShader(const char* path)
 
 	glUseProgram(shaderProgram);
 
-	LSH_TRACE("Shader program compiled and linked successfully");
-
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 
@@ -278,6 +287,16 @@ int RecompileShader(const char* name)
 	}
 	shader->RendererID = newRendererID;
 	return 1;
+}
+
+void SetActiveShader(UIShaderType uiShaderType)
+{
+	if(s_ActiveShader->uiShaderType != uiShaderType)
+	{
+		Shader* shader = GetShaderByUIShaderType(uiShaderType);
+		glUseProgram(shader->RendererID);
+		s_ActiveShader = shader;
+	}
 }
 
 void UploadUniform1i(const char* name, int value)
@@ -376,7 +395,7 @@ void UploadUniformMat4f(const char* name, const mat4* matrix)
 	}
 }
 
-void ShutdownShaders()
+void ShutdownShader()
 {
 	for(uint32_t i = 0; i < s_ShadersCount; i++)
 	{
@@ -391,4 +410,6 @@ void ShutdownShaders()
 		}
 		free(s_Shaders[i]);
 	}
+
+	LSH_TRACE("Shutdown shader");
 }

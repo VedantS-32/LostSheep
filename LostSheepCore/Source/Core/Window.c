@@ -2,6 +2,8 @@
 
 #include "Core/Log.h"
 #include "Event/Event.h"
+#include "Renderer/Renderer.h"
+#include "UI/UI.h"
 
 #define GLAD_GL_IMPLEMENTATION
 #include "glad/glad.h"
@@ -15,6 +17,8 @@
 
 static GLFWwindow* s_WindowHandle;
 static WindowData s_WindowData;
+
+static float s_LastFrameTime = 0.0f;
 
 int InitWindow()
 {
@@ -38,6 +42,8 @@ int InitWindow()
 void RegisterCallbacks(GLFWwindow* window)
 {
 	glfwSetWindowUserPointer(window, &s_WindowData);
+
+	glfwSetWindowRefreshCallback(window, WindowRefreshCallback);
 
 	glfwSetWindowSizeCallback(window, WindowResizeCallback);
 
@@ -164,6 +170,26 @@ void WindowLogEvent(Event* event)
 void SetWindowEventCallback(EventCallbackHandlefn callback)
 {
 	s_WindowData.EventCallback = callback;
+}
+
+void WindowRefreshCallback(GLFWwindow* window)
+{
+	float deltaTime = GetTimeWindow();
+	deltaTime -= s_LastFrameTime;
+	s_LastFrameTime = GetTimeWindow();
+
+	deltaTime *= 1000.f;
+
+	glfwGetFramebufferSize(s_WindowHandle, &s_WindowData.Width, &s_WindowData.Height);
+	glViewport(0, 0, s_WindowData.Width, s_WindowData.Height);
+
+	glfwSwapBuffers(s_WindowHandle);
+
+	BeginRendering();
+	OnUpdateRenderer(deltaTime);
+	EndRendering();
+
+	//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)", deltaTime, 1000.0f / deltaTime);
 }
 
 void WindowResizeCallback(GLFWwindow* window, int width, int height)

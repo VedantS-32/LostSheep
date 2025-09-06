@@ -14,6 +14,8 @@ project "LostSheepCore"
 
 		"%{wks.location}/LostSheepCore/Vendor/cglm/include/**h",
 
+		"%{wks.location}/LostSheepCore/Vendor/stb_image/stb_image.h",
+
 		"Source/**.h",
 		"Source/**.c"
 	}
@@ -23,7 +25,8 @@ project "LostSheepCore"
 		"%{IncludeDir.glfw}",
 		"%{IncludeDir.glad}",
 		"%{IncludeDir.cglm}",
-		"%{IncludeDir.clay}"
+		"%{IncludeDir.clay}",
+		"%{IncludeDir.stb_image}"
 	}
 
 	links {
