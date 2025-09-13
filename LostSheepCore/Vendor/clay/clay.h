@@ -3139,11 +3139,94 @@ CLAY_DLL_EXPORT Clay_ElementIdArray Clay_GetPointerOverIds(void) {
 }
 
 #pragma region DebugTools
+#ifdef LSH_PROJECT
+Clay_Color Clay__debugViewHighlightColor = { 168 / 255.0f, 66 / 255.0f, 28 / 255.0f, 100 / 255.0f };
+
+Clay_Color CLAY__DEBUGVIEW_COLOR_1 = { 58 / 255.0f, 56 / 255.0f, 52 / 255.0f, 1.0f };
+Clay_Color CLAY__DEBUGVIEW_COLOR_2 = { 62 / 255.0f, 60 / 255.0f, 58 / 255.0f, 1.0f };
+Clay_Color CLAY__DEBUGVIEW_COLOR_3 = { 141 / 255.0f, 133 / 255.0f, 135 / 255.0f, 1.0f };
+Clay_Color CLAY__DEBUGVIEW_COLOR_4 = { 238 / 255.0f, 226 / 255.0f, 231 / 255.0f, 1.0f };
+Clay_Color CLAY__DEBUGVIEW_COLOR_SELECTED_ROW = { 102 / 255.0f, 80 / 255.0f, 78 / 255.0f, 1.0f };
+Clay_Color CLAY__DEBUGVIEW_LABEL_COLOR = { 243 / 255.0f, 134 / 255.0f, 48 / 255.0f, 90 / 255.0f };
+Clay_Color CLAY__DEBUGVIEW_CLOSE_BUTTON_COLOR = { 217 / 255.0f, 91 / 255.0f, 67 / 255.0f, 80 / 255.0f };
+Clay_Color CLAY__DEBUGVIEW_CLOSE_BORDER_COLOR = { 217 / 255.0f, 91 / 255.0f, 67 / 255.0f, 1.0f };
+const int32_t CLAY__DEBUGVIEW_ROW_HEIGHT = 32;
+const int32_t CLAY__DEBUGVIEW_OUTER_PADDING = 10;
+const int32_t CLAY__DEBUGVIEW_INDENT_WIDTH = 16;
+Clay_TextElementConfig Clay__DebugView_TextNameConfig = {
+    .textColor = {238 / 255.0f, 226 / 255.0f, 231 / 255.0f, 1.0f},
+    .fontSize = 16,
+    .wrapMode = CLAY_TEXT_WRAP_NONE
+};
+Clay_LayoutConfig Clay__DebugView_ScrollViewItemLayoutConfig = CLAY__DEFAULT_STRUCT;
+
+typedef struct {
+    Clay_String label;
+    Clay_Color color;
+} Clay__DebugElementConfigTypeLabelConfig;
+
+Clay__DebugElementConfigTypeLabelConfig Clay__DebugGetElementConfigTypeLabel(Clay__ElementConfigType type) {
+    switch (type) {
+    case CLAY__ELEMENT_CONFIG_TYPE_SHARED:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Shared"), { 243 / 255.0f,134 / 255.0f,48 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_TEXT:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Text"), { 105 / 255.0f,210 / 255.0f,231 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_ASPECT:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Aspect"), { 101 / 255.0f,149 / 255.0f,194 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_IMAGE:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Image"), { 121 / 255.0f,189 / 255.0f,154 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_FLOATING:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Floating"), { 250 / 255.0f,105 / 255.0f,0 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_CLIP:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Scroll"), { 242 / 255.0f,196 / 255.0f,90 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_BORDER:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Border"), { 108 / 255.0f,91 / 255.0f,123 / 255.0f,1.0f }
+        };
+    case CLAY__ELEMENT_CONFIG_TYPE_CUSTOM:
+        return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+        {
+            CLAY_STRING("Custom"), { 11 / 255.0f,72 / 255.0f,107 / 255.0f,1.0f }
+        };
+    default:
+        break;
+    }
+    return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig)
+    {
+        CLAY_STRING("Error"), { 1.0f,0.0f,0.0f,1.0f }
+    };
+}
+
+#else
+Clay_Color Clay__debugViewHighlightColor = { 168, 66, 28, 100 };
+
 Clay_Color CLAY__DEBUGVIEW_COLOR_1 = {58, 56, 52, 255};
 Clay_Color CLAY__DEBUGVIEW_COLOR_2 = {62, 60, 58, 255};
 Clay_Color CLAY__DEBUGVIEW_COLOR_3 = {141, 133, 135, 255};
 Clay_Color CLAY__DEBUGVIEW_COLOR_4 = {238, 226, 231, 255};
 Clay_Color CLAY__DEBUGVIEW_COLOR_SELECTED_ROW = {102, 80, 78, 255};
+Clay_Color CLAY__DEBUGVIEW_LABEL_COLOR = {243, 134, 48, 90};
+Clay_Color CLAY__DEBUGVIEW_CLOSE_BUTTON_COLOR = {217, 91, 67, 80};
+Clay_Color CLAY__DEBUGVIEW_CLOSE_BORDER_COLOR = {217, 91, 67, 255};
 const int32_t CLAY__DEBUGVIEW_ROW_HEIGHT = 30;
 const int32_t CLAY__DEBUGVIEW_OUTER_PADDING = 10;
 const int32_t CLAY__DEBUGVIEW_INDENT_WIDTH = 16;
@@ -3169,6 +3252,7 @@ Clay__DebugElementConfigTypeLabelConfig Clay__DebugGetElementConfigTypeLabel(Cla
     }
     return CLAY__INIT(Clay__DebugElementConfigTypeLabelConfig) { CLAY_STRING("Error"), {0,0,0,255} };
 }
+#endif
 
 typedef struct {
     int32_t rowCount;
@@ -3257,7 +3341,7 @@ Clay__RenderDebugLayoutData Clay__RenderDebugLayoutElementsList(int32_t initialR
                 for (int32_t elementConfigIndex = 0; elementConfigIndex < currentElement->elementConfigs.length; ++elementConfigIndex) {
                     Clay_ElementConfig *elementConfig = Clay__ElementConfigArraySlice_Get(&currentElement->elementConfigs, elementConfigIndex);
                     if (elementConfig->type == CLAY__ELEMENT_CONFIG_TYPE_SHARED) {
-                        Clay_Color labelColor = {243,134,48,90};
+                        Clay_Color labelColor = CLAY__DEBUGVIEW_LABEL_COLOR;
                         labelColor.a = 90;
                         Clay_Color backgroundColor = elementConfig->config.sharedElementConfig->backgroundColor;
                         Clay_CornerRadius radius = elementConfig->config.sharedElementConfig->cornerRadius;
@@ -3466,9 +3550,9 @@ void Clay__RenderDebugView(void) {
             // Close button
             CLAY({
                 .layout = { .sizing = {CLAY_SIZING_FIXED(CLAY__DEBUGVIEW_ROW_HEIGHT - 10), CLAY_SIZING_FIXED(CLAY__DEBUGVIEW_ROW_HEIGHT - 10)}, .childAlignment = {CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER} },
-                .backgroundColor = {217,91,67,80},
+                .backgroundColor = CLAY__DEBUGVIEW_CLOSE_BUTTON_COLOR,
                 .cornerRadius = CLAY_CORNER_RADIUS(4),
-                .border = { .color = { 217,91,67,255 }, .width = { 1, 1, 1, 1, 0 } },
+                .border = { .color = CLAY__DEBUGVIEW_CLOSE_BORDER_COLOR, .width = { 1, 1, 1, 1, 0 } },
             }) {
                 Clay_OnHover(HandleDebugViewCloseButtonInteraction, 0);
                 CLAY_TEXT(CLAY_STRING("x"), CLAY_TEXT_CONFIG({ .textColor = CLAY__DEBUGVIEW_COLOR_4, .fontSize = 16 }));
@@ -3838,7 +3922,6 @@ void Clay__RenderDebugView(void) {
 #pragma endregion
 
 uint32_t Clay__debugViewWidth = 400;
-Clay_Color Clay__debugViewHighlightColor = { 168, 66, 28, 100 };
 
 Clay__WarningArray Clay__WarningArray_Allocate_Arena(int32_t capacity, Clay_Arena *arena) {
     size_t totalSizeBytes = capacity * sizeof(Clay_String);

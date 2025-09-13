@@ -10,7 +10,7 @@
 static TextureInfo* s_Textures[64];
 static uint32_t s_TextureCount = 0;
 
-static const s_TexturePathCount = 2;
+static const uint32_t s_TexturePathCount = 2;
 static const char* s_TexturePaths[] = {
 	"Content/Texture/CStell.png",
 	"Content/Texture/UVChecker.png"
@@ -98,7 +98,7 @@ void InitTexture()
 	}
 }
 
-int LoadTexture(const char* path)
+uint32_t LoadTexture(const char* path)
 {
 	int width, height, channels;
 	const char* name;
@@ -128,8 +128,8 @@ int LoadTexture(const char* path)
 	}
 
 	TextureInfo* texture = CreateTexture(&spec, data);
-	texture->Name = name;
-	texture->Path = path;
+	texture->Name = _strdup(name);
+	texture->Path = _strdup(path);
 	stbi_image_free(data);
 
 	s_Textures[s_TextureCount] = texture;
@@ -188,6 +188,9 @@ void ShutdownTexture()
 	for (uint32_t i = 0; i < s_TextureCount; i++)
 	{
 		glDeleteTextures(1, &(s_Textures[i]->RendererID));
+
+		free(s_Textures[i]->Name);
+		free(s_Textures[i]->Path);
 
 		free(s_Textures[i]);
 	}

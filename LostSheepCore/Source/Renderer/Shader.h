@@ -1,6 +1,9 @@
 #pragma once
 
-#include "cglm/types.h"
+#include "Math/Types.h"
+
+#include "cglm/cglm.h"
+
 #include <stdint.h>
 
 typedef enum UIShaderType
@@ -37,14 +40,14 @@ int RecompileShader(const char* name);
 void SetActiveShader(UIShaderType uiShaderType);
 
 void UploadUniform1i(const char* name, int v0);
-void UploadUniform2i(const char* name, const ivec2* v0);
-void UploadUniform3i(const char* name, const ivec3* v0);
-void UploadUniform4i(const char* name, const ivec4* v0);
+void UploadUniform2i(const char* name, const LSHIVec2* v0);
+void UploadUniform3i(const char* name, const LSHIVec3* v0);
+void UploadUniform4i(const char* name, const LSHIVec4* v0);
 
 void UploadUniform1f(const char* name, float v0);
-void UploadUniform2f(const char* name, const vec2* v0);
-void UploadUniform3f(const char* name, const vec3* v0);
-void UploadUniform4f(const char* name, const vec4* v0);
+void UploadUniform2f(const char* name, const LSHVec2* v0);
+void UploadUniform3f(const char* name, const LSHVec3* v0);
+void UploadUniform4f(const char* name, const LSHVec4* v0);
 
 void UploadUniformMat3f(const char* name, const mat3* matrix);
 void UploadUniformMat4f(const char* name, const mat4* matrix);

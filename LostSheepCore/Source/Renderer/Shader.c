@@ -18,10 +18,11 @@ static Shader* s_ActiveShader = NULL;
 // Must be in the serial of Rectangle, Image, Text; as UIShaderType enum
 static const char* s_ShadersPaths[] = {
 	"Content/Shader/Rectangle.glsl",
-	"Content/Shader/Texture.glsl"
+	"Content/Shader/Texture.glsl",
+	"Content/Shader/Text.glsl"
 };
 
-static uint32_t s_ShaderPathCount = 2;
+static uint32_t s_ShaderPathCount = 3;
 
 static char* ReadFile(const char* path)
 {
@@ -308,33 +309,30 @@ void UploadUniform1i(const char* name, int value)
     }
 }
 
-void UploadUniform2i(const char* name, const ivec2* value)
+void UploadUniform2i(const char* name, const LSHIVec2* value)
 {
     int location = GetUniformLocation(name);
-	int* valuePtr = (int*)value;
     if (location != -1)
     {
-        glUniform2i(location, (GLint)(valuePtr[0]), (GLint)(valuePtr[1]));
+        glUniform2i(location, (GLint)(value->x), (GLint)(value->y));
     }
 }
 
-void UploadUniform3i(const char* name, const ivec3* value)
+void UploadUniform3i(const char* name, const LSHIVec3* value)
 {
     int location = GetUniformLocation(name);
-	int* valuePtr = (int*)value;
     if (location != -1)
     {
-        glUniform3i(location, (GLint)(valuePtr[0]), (GLint)(valuePtr[1]), (GLint)(valuePtr[2]));
+        glUniform3i(location, (GLint)(value->x), (GLint)(value->y), (GLint)(value->z));
     }
 }
 
-void UploadUniform4i(const char* name, const ivec4* value)
+void UploadUniform4i(const char* name, const LSHIVec4* value)
 {
 	int location = GetUniformLocation(name);
-	int* valuePtr = (int*)value;
 	if (location != -1)
 	{
-		glUniform4i(location, (GLint)(valuePtr[0]), (GLint)(valuePtr[1]), (GLint)(valuePtr[2]), (GLint)(valuePtr[3]));
+		glUniform4i(location, (GLint)(value->x), (GLint)(value->y), (GLint)(value->z), (GLint)(value->w));
 	}
 }
 
@@ -347,33 +345,30 @@ void UploadUniform1f(const char* name, float value)
 	}
 }
 
-void UploadUniform2f(const char* name, const vec2* value)
+void UploadUniform2f(const char* name, const LSHVec2* value)
 {
 	int location = GetUniformLocation(name);
-	float* valuePtr = (float*)value;
 	if (location != -1)
 	{
-		glUniform2f(location, (GLfloat)(valuePtr[0]), (GLfloat)(valuePtr[1]));
+		glUniform2f(location, (GLfloat)(value->x), (GLfloat)(value->y));
 	}
 }
 
-void UploadUniform3f(const char* name, const vec3* value)
+void UploadUniform3f(const char* name, const LSHVec3* value)
 {
 	int location = GetUniformLocation(name);
-	float* valuePtr = (float*)value;
 	if (location != -1)
 	{
-		glUniform3f(location, (GLfloat)(valuePtr[0]), (GLfloat)(valuePtr[1]), (GLfloat)(valuePtr[2]));
+		glUniform3f(location, (GLfloat)(value->x), (GLfloat)(value->y), (GLfloat)(value->z));
 	}
 }
 
-void UploadUniform4f(const char* name, const vec4* value)
+void UploadUniform4f(const char* name, const LSHVec4* value)
 {
 	int location = GetUniformLocation(name);
-	float* valuePtr = (float*)value;
 	if (location != -1)
 	{
-		glUniform4f(location, (GLfloat)(valuePtr[0]), (GLfloat)(valuePtr[1]), (GLfloat)(valuePtr[2]), (GLfloat)(valuePtr[3]));
+		glUniform4f(location, (GLfloat)(value->x), (GLfloat)(value->y), (GLfloat)(value->z), (GLfloat)(value->w));
 	}
 }
 

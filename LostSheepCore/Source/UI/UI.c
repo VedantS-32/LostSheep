@@ -17,6 +17,8 @@
 #include "clay.h"
 #pragma warning(pop)
 
+static int s_DebugLayout = 0;
+
 static float s_DeltaTime = 16.66f;
 
 double s_xPos = 0.0f;
@@ -51,7 +53,7 @@ static void HandleClayErrors(Clay_ErrorData errorData)
 static inline Clay_Dimensions MeasureText(Clay_StringSlice text, Clay_TextElementConfig* config, void* userData) {
 	// Clay_TextElementConfig contains members such as fontId, fontSize, letterSpacing etc
 	// Note: Clay_String->chars is not guaranteed to be null terminated
-	LSH_TRACE("MeasureText: %.2fx%.2f", text.length * config->fontSize, config->fontSize);
+	//LSH_TRACE("MeasureText: %dx%d", text.length * config->fontSize, config->fontSize);
 	return (Clay_Dimensions) {
 		.width = (float)(text.length) * config->fontSize,
 			.height = (float)(config->fontSize)
@@ -127,13 +129,13 @@ void BuildUI()
 			.backgroundColor = (Clay_Color){0.15f, 0.15f, 0.15f, 1.0f},
 			.layout = {
 				.layoutDirection = CLAY_TOP_TO_BOTTOM,
-				.sizing = {CLAY_SIZING_PERCENT(Clay_Hovered() ? 0.75 : 0.5f), CLAY_SIZING_GROW(1.0f)},
+				.sizing = {CLAY_SIZING_PERCENT(Clay_Hovered() ? 0.75f : 0.5f), CLAY_SIZING_GROW(1.0f)},
 				.padding = CLAY_PADDING_ALL(16),
 				.childGap = 16
 			}
 			})
 		{
-			Clay_OnHover(HandleOnClickElement, "Lost Sheep");
+			Clay_OnHover(HandleOnClickElement, (intptr_t)"Lost Sheep");
 
 			CLAY({
 				.id = CLAY_ID("Header01a") ,
@@ -149,7 +151,7 @@ void BuildUI()
 					}
 				})
 			{
-				Clay_OnHover(HandleOnClickElement, "Lost Sheep");
+				Clay_OnHover(HandleOnClickElement, (intptr_t)"Lost Sheep");
 			}
 
 		}
@@ -171,10 +173,20 @@ void BuildUI()
 				.border.color = (Clay_Color){0.8f, 0.8f, 0.8f, 1.0f},
 				.layout = {
 					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_PERCENT(0.15f)},
-					.padding = CLAY_PADDING_ALL(16)
+					.padding = CLAY_PADDING_ALL(16),
+					.childAlignment = {
+					//.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+					}
 				}
 				})
 			{
+				CLAY_TEXT(CLAY_STRING("Lost Sheep"),
+					CLAY_TEXT_CONFIG({
+					.fontSize = 48,
+					.textColor = {0.0f, 1.0f, 1.0f, 1.0f},
+					.textAlignment = CLAY_TEXT_ALIGN_CENTER
+					}));
 			}
 			for(int i = 0; i < 3; i++)
 			{
@@ -188,11 +200,21 @@ void BuildUI()
 					.border.color = (Clay_Color){0.8f, 0.8f, 0.8f, 1.0f},
 					.layout = {
 						.sizing = {CLAY_SIZING_GROW(1), CLAY_SIZING_GROW(1)},
-						.padding = CLAY_PADDING_ALL(16)
+						.padding = CLAY_PADDING_ALL(16),
+						.childAlignment = {
+							.x = CLAY_ALIGN_X_CENTER,
+							.y = CLAY_ALIGN_Y_CENTER
+						}
 					}
 					})
 				{
-					Clay_OnHover(HandleOnClickElement, "Lost Sheep");
+					CLAY_TEXT(CLAY_STRING("Lost Sheep; My memo for daily activities"),
+						CLAY_TEXT_CONFIG({
+							.fontSize = Clay_Hovered() ? 24 : 18,
+							.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+							.textAlignment = CLAY_TEXT_ALIGN_CENTER
+						}));
+					Clay_OnHover(HandleOnClickElement, (intptr_t)"Lost Sheep");
 				}
 			}
 		}
@@ -277,7 +299,17 @@ int OnKeyPressUI(Event* event)
 {
 	if (*((int*)event->Data) == GLFW_KEY_R)
 	{
-		RecompileShader("Rectangle.glsl");
+		//RecompileShader("Rectangle.glsl");
+		return 1;
+	}
+	if (*((int*)event->Data) == GLFW_KEY_D)
+	{
+		if (!s_DebugLayout)
+			s_DebugLayout = 1;
+		else
+			s_DebugLayout = 0;
+
+		Clay_SetDebugModeEnabled(s_DebugLayout);
 		return 1;
 	}
 	return 0;

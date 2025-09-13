@@ -26,13 +26,17 @@ project "LostSheepCore"
 		"%{IncludeDir.glad}",
 		"%{IncludeDir.cglm}",
 		"%{IncludeDir.clay}",
-		"%{IncludeDir.stb_image}"
+		"%{IncludeDir.stb_image}",
+		"%{IncludeDir.freetype}"
 	}
 
 	links {
 		"opengl32",
+		"User32",
+		"shell32",
 		"gdi32",
-		"glfw"
+		"glfw",
+		"freetype"
 	}
 
 	filter "action:vs*"
@@ -51,17 +55,20 @@ project "LostSheepCore"
 	filter "system:windows"
 		systemversion "latest"
 		defines {
-			"LSH_PLATFORM_WINDOWS"
+			"LSH_PLATFORM_WINDOWS",
+			"LSH_PROJECT"
 		}
 
 	filter "system:linux"
 		defines {
-			"LSH_PLATFORM_LINUX"
+			"LSH_PLATFORM_LINUX",
+			"LSH_PROJECT"
 		}
-
-	filter "system:macosx"
+		
+		filter "system:macosx"
 		defines {
-			"LSH_PLATFORM_MACOSX"
+			"LSH_PLATFORM_MACOSX",
+			"LSH_PROJECT"
 		}
 
 	filter "configurations:Debug"

@@ -7,8 +7,11 @@
 
 #include "Renderer/Shader.h"
 #include "Renderer/Texture.h"
+#include "Renderer/Text.h"
 
 #include "UI/UI.h"
+
+#include "Math/Types.h"
 
 #include "glad/glad.h"
 
@@ -21,20 +24,21 @@
 static int s_ZIndex = 0;
 
 static float vertices[] = {
-    // Coords    // TexCoords
-     1.0f,  1.0f, 1.0f,  1.0f,  // top right
-     1.0f,  0.0f, 1.0f,  0.0f,  // bottom right
-     0.0f,  0.0f, 0.0f,  0.0f,  // bottom left
-     0.0f,  1.0f, 0.0f,  1.0f,  // top left
+    // Coords      // TexCoords
+     1.0f,  1.0f,   1.0f,  1.0f,  // top right
+     1.0f,  0.0f,   1.0f,  0.0f,  // bottom right
+     0.0f,  0.0f,   0.0f,  0.0f,  // bottom left
+     0.0f,  1.0f,   0.0f,  1.0f,  // top left
 };
 static unsigned int indices[] = {  // note that we start from 0!
     0, 1, 3,   // first triangle
     1, 2, 3    // second triangle
 };
 
-static unsigned int VAO;
-static unsigned int VBO;
-static unsigned int IBO;
+static unsigned int s_VAO;
+static unsigned int s_CommonVBO;
+static unsigned int s_TextVBO;
+static unsigned int s_IBO;
 
 static float s_ZNear = -1000.0f;
 static float s_ZFar = 1000.0f;
@@ -61,17 +65,26 @@ void InitRenderer()
     glEnable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
 
-    glCreateVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
+    glCreateVertexArrays(1, &s_VAO);
+    glBindVertexArray(s_VAO);
 
-    glCreateBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glGenBuffers(1, &s_IBO);
 
-    glGenBuffers(1, &IBO);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_IBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glCreateBuffers(1, &s_CommonVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, s_CommonVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    glCreateBuffers(1, &s_TextVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, s_TextVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), NULL, GL_DYNAMIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
@@ -80,8 +93,11 @@ void InitRenderer()
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
+    BindCommonVBO();
+
     InitShader();
     InitTexture();
+    InitText();
 
 	const WindowData* windowData = GetWindowData();
 	glViewport(0, 0, windowData->Width, windowData->Height);
@@ -107,13 +123,32 @@ void EndRendering()
 {
 }
 
+void BindCommonVBO()
+{
+    glBindBuffer(GL_ARRAY_BUFFER, s_CommonVBO);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+}
+
+void BindTextVBO()
+{
+    glBindBuffer(GL_ARRAY_BUFFER, s_TextVBO);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+}
+
 void OnUpdateRenderer(float deltaTime)
 {
     const WindowData* windowData = GetWindowData();
 
     glm_ortho(0.0f, (float)windowData->Width, (float)windowData->Height, 0.0f, s_ZNear, s_ZFar, s_ProjectionMatrix);
     glm_mat4_mul(s_ProjectionMatrix, s_ViewMatrix, s_ViewProjectionMatrix);
-	UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
 
     OnUpdateUI(deltaTime);
 }
@@ -130,11 +165,20 @@ void RenderRectangle(Clay_RenderCommand* cmd)
 
     Clay_BoundingBox bbox = cmd->boundingBox;
     Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
-    
-    vec4 color = { rectangle.backgroundColor.r,   rectangle.backgroundColor.g,  rectangle.backgroundColor.b,  rectangle.backgroundColor.a};
 
-    UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
-	UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
+    LSHVec3 position = { bbox.x, bbox.y, (float)s_ZIndex++ };
+
+    LSHVec4 color = {
+        rectangle.backgroundColor.r,
+        rectangle.backgroundColor.g,
+        rectangle.backgroundColor.b,
+        rectangle.backgroundColor.a
+    };
+
+    UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+
+    UploadUniform3f("uQuadPos", &position);
+	UploadUniform2f("uQuadSize", &(LSHVec2) { bbox.width, bbox.height });
     UploadUniform4f("uColor", &color);
     UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
     UploadUniform1f("uBorderThickness", 0.0f);
@@ -153,18 +197,22 @@ void RenderBorder(Clay_RenderCommand* cmd)
     Clay_BorderRenderData border = cmd->renderData.border;
     Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
     
-	vec4 color = { 1.0f, 0.0f, 1.0f, 1.0f };
+    LSHVec3 position = { bbox.x, bbox.y, (float)s_ZIndex++ };
+
+	LSHVec4 color = { 1.0f, 0.0f, 1.0f, 0.0f };
 
     if (rectangle.cornerRadius.topRight > 0.0f)
     {
-        color[0] = border.color.r;
-        color[1] = border.color.g;
-        color[2] = border.color.b;
-        color[3] = border.color.a;
+        color.r = border.color.r;
+        color.g = border.color.g;
+        color.b = border.color.b;
+        color.a = border.color.a;
     }
 
-    UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
-    UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
+    UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+
+    UploadUniform3f("uQuadPos", &position);
+    UploadUniform2f("uQuadSize", &(LSHVec2) { bbox.width, bbox.height });
     UploadUniform4f("uColor", &color);
     UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
     UploadUniform1f("uBorderThickness", border.width.top);
@@ -174,6 +222,34 @@ void RenderBorder(Clay_RenderCommand* cmd)
 void RenderText(Clay_RenderCommand* cmd)
 {
     SetActiveShader(UIShaderType_Text);
+
+    Clay_BoundingBox bbox = cmd->boundingBox;
+    Clay_TextRenderData textData = cmd->renderData.text;
+    const char* text = textData.stringContents.chars;
+
+    LSHVec2 position = { 0.0f, 0.0f };
+    position.x = bbox.x;
+    position.y = bbox.y;
+
+    LSHVec2 bboxDim = { 0.0f, 0.0f };
+    bboxDim.x = bbox.width;
+    bboxDim.y = bbox.height;
+
+    LSHVec4 color = { 1.0f, 0.0f, 1.0f, 1.0f };
+    color.r = textData.textColor.r;
+    color.g = textData.textColor.g;
+    color.b = textData.textColor.b;
+    color.a = textData.textColor.a;
+
+    //LSH_INFO(text);
+
+    UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+
+    UploadUniform1f("uQuadPosZ", (float)s_ZIndex++);
+
+    BindTextVBO();
+    RenderTextLine(text, textData.stringContents.length, &position, &bboxDim, textData.fontSize, &color);
+    BindCommonVBO();
 }
 
 void RenderImage(Clay_RenderCommand* cmd)
@@ -183,6 +259,8 @@ void RenderImage(Clay_RenderCommand* cmd)
     Clay_BoundingBox bbox = cmd->boundingBox;
     Clay_ImageRenderData image = cmd->renderData.image;
     Clay_RectangleRenderData rectangle = cmd->renderData.rectangle;
+
+    LSHVec3 position = { bbox.x, bbox.y, (float)s_ZIndex++ };
 
     int textureRendererID = *((TextureName*)(image.imageData));
     BindActiveTexture(textureRendererID, 0);
@@ -197,13 +275,13 @@ void RenderImage(Clay_RenderCommand* cmd)
     //    backgroundColor[3] = image.backgroundColor.a;
     //}
 
-    UploadUniform3f("uQuadPos", &(vec3){ bbox.x, bbox.y, (float)s_ZIndex++});
-    UploadUniform2f("uQuadSize", &(vec2) { bbox.width, bbox.height });
+    UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
+
+    UploadUniform3f("uQuadPos", &position);
+    UploadUniform2f("uQuadSize", &(LSHVec2) { bbox.width, bbox.height });
     UploadUniform1i("uTexture", textureRendererID);
     UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-    //SetActiveShader(UIShaderType_Rectangle);
 }
 
 void StartClipping(Clay_RenderCommand* cmd)
@@ -220,6 +298,7 @@ void RenderCustomElement(Clay_RenderCommand* cmd)
 
 void ShutdownRenderer()
 {
+    ShutdownText();
     ShutdownUI();
     ShutdownTexture();
     ShutdownShader();

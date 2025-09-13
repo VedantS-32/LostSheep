@@ -10,6 +10,10 @@ void BeginRendering();
 
 void EndRendering();
 
+void BindCommonVBO();
+
+void BindTextVBO();
+
 void OnUpdateRenderer(float deltaTime);
 
 void OnEventRenderer(Event* event);

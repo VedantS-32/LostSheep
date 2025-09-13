@@ -19,9 +19,11 @@ workspace "LostSheep"
 	IncludeDir["cglm"] = "%{wks.location}/LostSheepCore/Vendor/cglm/include"
 	IncludeDir["clay"] = "%{wks.location}/LostSheepCore/Vendor/clay"
 	IncludeDir["stb_image"] = "%{wks.location}/LostSheepCore/Vendor/stb_image"
+	IncludeDir["freetype"] = "%{wks.location}/LostSheepCore/Vendor/freetype/include"
 
 	group "Dependencies"
 		include "LostSheepCore/Vendor/glfw"
+		include "LostSheepCore/Vendor/freetype"
 	group ""
 
 include "LostSheepCore"
