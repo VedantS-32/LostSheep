@@ -260,7 +260,7 @@ void BuildUI()
 		.id = CLAY_ID("LostSheepBase"),
 		.backgroundColor = (Clay_Color){0.12f, 0.12f, 0.12f, 1.0f},
 		.cornerRadius = CLAY_CORNER_RADIUS(1.0f),
-		.border.width = CLAY_BORDER_ALL(1),
+		.border.width = CLAY_BORDER_ALL(2),
 		.border.color = (Clay_Color){0.3f, 0.3f, 0.3f, 1.0f},
 		.layout = {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
