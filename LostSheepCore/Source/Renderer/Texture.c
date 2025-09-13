@@ -10,10 +10,13 @@
 static TextureInfo* s_Textures[64];
 static uint32_t s_TextureCount = 0;
 
-static const uint32_t s_TexturePathCount = 2;
+static const uint32_t s_TexturePathCount = 5;
 static const char* s_TexturePaths[] = {
 	"Content/Texture/CStell.png",
-	"Content/Texture/UVChecker.png"
+	"Content/Texture/UVChecker.png",
+	"Content/Texture/Minimize.png",
+	"Content/Texture/Maximize.png",
+	"Content/Texture/Close.png"
 };
 
 static GLenum ToOpenGLTexInternalFormat(ImageFormat format)
@@ -135,7 +138,7 @@ uint32_t LoadTexture(const char* path)
 	s_Textures[s_TextureCount] = texture;
 	s_TextureCount++;
 
-	LSH_TRACE("Imported Texture2D; Path: %s", path);
+	LSH_TRACE("Imported Texture2D: %s", path);
 
 	return texture->RendererID;
 }

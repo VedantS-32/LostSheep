@@ -30,6 +30,10 @@ const float GetTimeWindow();
 
 void OnUpdateWindow(float deltaTime);
 
+void MinimizeWindow();
+
+void MinMaxWindow();
+
 void ShutdownWindow();
 
 void WindowLogEvent(Event* event);

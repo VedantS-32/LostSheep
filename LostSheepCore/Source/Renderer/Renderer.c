@@ -265,21 +265,11 @@ void RenderImage(Clay_RenderCommand* cmd)
     int textureRendererID = *((TextureName*)(image.imageData));
     BindActiveTexture(textureRendererID, 0);
 
-    //vec4 backgroundColor = { 1.0f, 0.0f, 1.0f, 1.0f };
-
-    //if (image.cornerRadius.topRight > 0.0f)
-    //{
-    //    backgroundColor[0] = image.backgroundColor.r;
-    //    backgroundColor[1] = image.backgroundColor.g;
-    //    backgroundColor[2] = image.backgroundColor.b;
-    //    backgroundColor[3] = image.backgroundColor.a;
-    //}
-
     UploadUniformMat4f("uViewProjection", &s_ViewProjectionMatrix);
 
     UploadUniform3f("uQuadPos", &position);
     UploadUniform2f("uQuadSize", &(LSHVec2) { bbox.width, bbox.height });
-    UploadUniform1i("uTexture", textureRendererID);
+    //UploadUniform1i("uTexture", textureRendererID);
     UploadUniform1f("uCornerRadius", rectangle.cornerRadius.topRight);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }

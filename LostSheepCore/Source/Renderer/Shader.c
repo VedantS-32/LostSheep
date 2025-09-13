@@ -201,7 +201,7 @@ void InitShader()
 
 		s_ShadersCount++;
 
-		LSH_TRACE("Shader program compiled; Path: %s", path);
+		LSH_TRACE("Shader program compiled: %s", path);
 	}
 
 	s_ActiveShader = s_Shaders[0];

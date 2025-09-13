@@ -42,11 +42,11 @@ void RunApplication()
 
         deltaTime *= 1000.f;
 
-		OnUpdateWindow(deltaTime);
-
 		BeginRendering();
         OnUpdateRenderer(deltaTime);
         EndRendering();
+
+		OnUpdateWindow(deltaTime);
 
 		//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)", deltaTime, 1000.0f / deltaTime);
     }
@@ -71,7 +71,7 @@ int OnEventWindowClose(Event* event)
 
 void CloseApplication()
 {
-    LSH_INFO("Closed window: %s", GetWindowData()->Title);
+    LSH_INFO("Close window event: %s", GetWindowData()->Title);
     s_Running = 0;
 }
 

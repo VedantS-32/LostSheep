@@ -116,6 +116,19 @@ void OnUpdateWindow(float deltaTime)
 	glfwPollEvents();
 }
 
+void MinimizeWindow()
+{
+	glfwIconifyWindow(s_WindowHandle);
+}
+
+void MinMaxWindow()
+{
+	if (glfwGetWindowAttrib(s_WindowHandle, GLFW_MAXIMIZED))
+		glfwRestoreWindow(s_WindowHandle);
+	else
+		glfwMaximizeWindow(s_WindowHandle);
+}
+
 void ShutdownWindow()
 {
 	glfwTerminate();
@@ -174,22 +187,6 @@ void SetWindowEventCallback(EventCallbackHandlefn callback)
 
 void WindowRefreshCallback(GLFWwindow* window)
 {
-	float deltaTime = GetTimeWindow();
-	deltaTime -= s_LastFrameTime;
-	s_LastFrameTime = GetTimeWindow();
-
-	deltaTime *= 1000.f;
-
-	glfwGetFramebufferSize(s_WindowHandle, &s_WindowData.Width, &s_WindowData.Height);
-	glViewport(0, 0, s_WindowData.Width, s_WindowData.Height);
-
-	glfwSwapBuffers(s_WindowHandle);
-
-	BeginRendering();
-	OnUpdateRenderer(deltaTime);
-	EndRendering();
-
-	//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)", deltaTime, 1000.0f / deltaTime);
 }
 
 void WindowResizeCallback(GLFWwindow* window, int width, int height)
@@ -206,6 +203,23 @@ void WindowResizeCallback(GLFWwindow* window, int width, int height)
 	event.Handled = 0;
 
 	data->EventCallback(&event);
+
+	float deltaTime = GetTimeWindow();
+	deltaTime -= s_LastFrameTime;
+	s_LastFrameTime = GetTimeWindow();
+
+	deltaTime *= 1000.f;
+
+	glfwGetFramebufferSize(s_WindowHandle, &s_WindowData.Width, &s_WindowData.Height);
+	glViewport(0, 0, s_WindowData.Width, s_WindowData.Height);
+
+	glfwSwapBuffers(s_WindowHandle);
+
+	BeginRendering();
+	OnUpdateRenderer(deltaTime);
+	EndRendering();
+
+	//LSH_TRACE("Frame Time: %.3f ms (%.1f FPS)", deltaTime, 1000.0f / deltaTime);
 }
 
 void WindowCloseCallback(GLFWwindow* window)

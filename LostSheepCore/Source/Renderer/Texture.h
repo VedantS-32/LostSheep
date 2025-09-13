@@ -5,7 +5,10 @@
 typedef enum TextureName
 {
 	TextureName_CStell,
-	TextureName_UVChecker
+	TextureName_UVChecker,
+	TextureName_Minimize,
+	TextureName_Maximize,
+	TextureName_Close
 } TextureName;
 
 typedef enum ImageFormat
