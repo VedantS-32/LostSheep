@@ -86,6 +86,12 @@ int CreateWindow(const char* title, int width, int height)
 	glfwMakeContextCurrent(s_WindowHandle);
 	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
+	int monitorHeight = 0;
+	int monitorWidth = 0;
+	glfwGetMonitorPhysicalSize(glfwGetPrimaryMonitor(), &monitorWidth, &monitorHeight);
+
+	glfwSetWindowPos(s_WindowHandle, monitorWidth, monitorHeight);
+
 	RegisterCallbacks(s_WindowHandle);
 
 	return 1;

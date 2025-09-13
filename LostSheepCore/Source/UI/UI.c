@@ -248,7 +248,6 @@ void OnUpdateUI(float deltaTime)
 void OnEventUI(Event* event)
 {
 	DispatchEvent(EventTypeWindowResize, event, OnResizeWindowUI);
-	//DispatchEvent(EventTypeMouseMoved, event, OnMouseMoveUI);         // Updating in UpdatePointerState();
 	DispatchEvent(EventTypeMouseScrolled, event, OnMouseScrollUI);
 	DispatchEvent(EventTypeKeyPressed, event, OnKeyPressUI);
 	DispatchEvent(EventTypeMouseButtonPressed, event, OnMouseClickedUI);
@@ -356,10 +355,33 @@ void BuildUI()
 							.id = CLAY_ID("WindowControlArea2"),
 							.layout = {
 								.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+								.childAlignment = {
+									.x = CLAY_ALIGN_X_RIGHT,
+									.y = CLAY_ALIGN_Y_CENTER
+								}
 							}
 							})
 						{
 							Clay_OnHover(HandleOnLeftClickMove, (intptr_t)"Move window");
+							CLAY({
+								.id = CLAY_ID("ApplicationName"),
+								.cornerRadius = CLAY_CORNER_RADIUS(1.0f),
+								.border.width = CLAY_BORDER_ALL(1),
+								.border.color = (Clay_Color){0.1f, 0.1f, 0.1f, 1.0f},
+								.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 0.75f : 0.6f},
+								.layout = {
+									.sizing = {CLAY_SIZING_FIT(1.0f), CLAY_SIZING_GROW(1.0f)},
+								}
+								})
+							{
+								CLAY_TEXT(CLAY_STRING("Lost Sheep"),
+									CLAY_TEXT_CONFIG({
+										.fontSize = 24,
+										.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+										.textAlignment = CLAY_TEXT_ALIGN_CENTER
+										})
+								);
+							}
 						}
 					}
 				}
