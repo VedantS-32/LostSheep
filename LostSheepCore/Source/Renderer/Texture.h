@@ -5,6 +5,7 @@
 typedef enum TextureName
 {
 	TextureName_CStell,
+	TextureName_CStellAlpha,
 	TextureName_UVChecker,
 	TextureName_Minimize,
 	TextureName_Maximize,

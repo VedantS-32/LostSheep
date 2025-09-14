@@ -109,7 +109,7 @@ void RenderTextLine(const char* text, uint32_t length, const LSHVec2* position, 
         TextCharacter ch = s_Characters[(int)(text[i])];
 
         float xpos = x + ch.Bearing.x * scale;
-        float ypos = (position->y + (ch.Size.y - ch.Bearing.y)) + (s_TextSizeBase * scale);
+        float ypos = (position->y + (ch.Size.y - ch.Bearing.y) * scale) + (s_TextSizeBase * scale);
 
         float w = ch.Size.x * scale;
         float h = -(ch.Size.y * scale);

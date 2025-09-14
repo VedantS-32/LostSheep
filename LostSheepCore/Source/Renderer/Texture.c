@@ -10,9 +10,10 @@
 static TextureInfo* s_Textures[64];
 static uint32_t s_TextureCount = 0;
 
-static const uint32_t s_TexturePathCount = 5;
+static const uint32_t s_TexturePathCount = 6;
 static const char* s_TexturePaths[] = {
 	"Content/Texture/CStell.png",
+	"Content/Texture/CStellAlpha.png",
 	"Content/Texture/UVChecker.png",
 	"Content/Texture/Minimize.png",
 	"Content/Texture/Maximize.png",

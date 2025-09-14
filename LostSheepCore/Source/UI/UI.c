@@ -32,7 +32,8 @@ static int s_ChangeWindowPosition = 0;
 
 static float s_TitleBarHeight = 64.0f;
 
-static TextureName texture = TextureName_CStell;
+static TextureName textureLSH = TextureName_CStell;
+static TextureName textureLSHAlpha = TextureName_CStellAlpha;
 static TextureName textureMinimize = TextureName_Minimize;
 static TextureName textureMaximize = TextureName_Maximize;
 static TextureName textureClose = TextureName_Close;
@@ -264,7 +265,6 @@ void BuildUI()
 		.layout = {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 			.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-			.childGap = 16
 		}
 		})
 		{
@@ -280,7 +280,7 @@ void BuildUI()
 			CLAY({
 				.id = CLAY_ID("LostSheepIcon"),
 				.image = {
-					.imageData = &texture
+					.imageData = &textureLSH
 				},
 				.layout = {
 					.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight), CLAY_SIZING_FIXED(s_TitleBarHeight)},
@@ -368,18 +368,19 @@ void BuildUI()
 								.cornerRadius = CLAY_CORNER_RADIUS(1.0f),
 								.border.width = CLAY_BORDER_ALL(1),
 								.border.color = (Clay_Color){0.1f, 0.1f, 0.1f, 1.0f},
-								.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 0.75f : 0.6f},
+								.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 1.0f : 0.4f},
 								.layout = {
 									.sizing = {CLAY_SIZING_FIT(1.0f), CLAY_SIZING_GROW(1.0f)},
+									.padding = CLAY_PADDING_ALL(4),
 								}
 								})
 							{
 								CLAY_TEXT(CLAY_STRING("Lost Sheep"),
 									CLAY_TEXT_CONFIG({
-										.fontSize = 24,
+										.fontSize = 20,
 										.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
 										.textAlignment = CLAY_TEXT_ALIGN_CENTER
-										})
+									})
 								);
 							}
 						}
@@ -389,15 +390,62 @@ void BuildUI()
 					.id = CLAY_ID("TabBar"),
 					.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
 					.layout = {
-						.layoutDirection = CLAY_TOP_TO_BOTTOM,
+						.layoutDirection = CLAY_LEFT_TO_RIGHT,
 						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+						.childGap = 2,
 						.childAlignment = {
-							.x = CLAY_ALIGN_X_CENTER,
-							.y = CLAY_ALIGN_Y_TOP
+							.x = CLAY_ALIGN_X_LEFT,
+							.y = CLAY_ALIGN_Y_BOTTOM
 						}
 					}
 					})
 				{
+					// Tab handles
+					CLAY({
+						.id = CLAY_ID("TabHandle1"),
+						.backgroundColor = Clay_Hovered() ? (Clay_Color) { 1.00f, 0.51f, 0.65f, 1.0f } : (Clay_Color) { 0.15f, 0.15f, 0.15f, 0.85f },
+						.layout = {
+							.layoutDirection = CLAY_TOP_TO_BOTTOM,
+							.sizing = {CLAY_SIZING_FIXED(128.0f), CLAY_SIZING_GROW(1.0f)},
+							.childAlignment = {
+								.x = CLAY_ALIGN_X_CENTER,
+								.y = CLAY_ALIGN_Y_CENTER
+							}
+						}
+						})
+					{
+						CLAY_TEXT(CLAY_STRING("Calender"),
+							CLAY_TEXT_CONFIG({
+								.fontSize = 16,
+								.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+								.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+								.wrapMode = CLAY_TEXT_WRAP_NONE
+							})
+						);
+					}
+
+					CLAY({
+						.id = CLAY_ID("TabHandle2"),
+						.backgroundColor = Clay_Hovered() ? (Clay_Color) { 1.00f, 0.51f, 0.65f, 1.0f } : (Clay_Color) { 0.15f, 0.15f, 0.15f, 0.85f },
+						.layout = {
+							.layoutDirection = CLAY_TOP_TO_BOTTOM,
+							.sizing = {CLAY_SIZING_FIXED(128.0f), CLAY_SIZING_GROW(1.0f)},
+							.childAlignment = {
+								.x = CLAY_ALIGN_X_CENTER,
+								.y = CLAY_ALIGN_Y_CENTER
+							}
+						}
+						})
+					{
+						CLAY_TEXT(CLAY_STRING("Time graph"),
+							CLAY_TEXT_CONFIG({
+								.fontSize = 16,
+								.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+								.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+								.wrapMode = CLAY_TEXT_WRAP_NONE
+							})
+						);
+					}
 				}
 			}
 			CLAY({
@@ -496,119 +544,90 @@ void BuildUI()
 				}
 			}
 		}
+		CLAY({
+			.id = CLAY_ID("DockSpace"),
+			.backgroundColor = (Clay_Color){0.1f, 0.1f, 0.1f, Clay_Hovered() ? 1.0f : 0.0f},
+			.layout = {
+				.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+				}
+			}
+			})
+		{
+			CLAY({
+				.id = CLAY_ID("LSHBackgroundContainer"),
+				.backgroundColor = (Clay_Color){0.1f, 0.1f, 0.1f, 0.0f},
+				.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
+				.layout = {
+					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+					.childAlignment = {
+						.x = CLAY_ALIGN_X_RIGHT,
+						.y = CLAY_ALIGN_Y_BOTTOM
+					}
+				}
+				})
+			{
+				CLAY({
+					.id = CLAY_ID("LSHBackground"),
+					.image = {
+						.imageData = &textureLSHAlpha
+					},
+					.layout = {
+						.sizing = {CLAY_SIZING_FIXED(512.0f), CLAY_SIZING_FIXED(512.0f)},
+					}
+					})
+				{
+				}
+			}
+
+			// Tabs go here!
+			CLAY({
+				.id = CLAY_ID("TabWrapper"),
+				.layout = {
+					.layoutDirection = CLAY_LEFT_TO_RIGHT,
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				}
+				})
+			{
+				CLAY({
+					.id = CLAY_ID("Tab1"),
+					.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
+					.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 1.0f : 0.5f},
+					.layout = {
+						.layoutDirection = CLAY_LEFT_TO_RIGHT,
+						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+					}
+					})
+				{
+				}
+			}
+
+			CLAY({
+				.id = CLAY_ID("TabWrapper2"),
+				.layout = {
+					.layoutDirection = CLAY_LEFT_TO_RIGHT,
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				}
+				})
+			{
+				CLAY({
+					.id = CLAY_ID("Tab2"),
+					.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
+					.backgroundColor = (Clay_Color){0.69f, 0.87f, 0.85f, Clay_Hovered() ? 1.0f : 0.5f},
+					.layout = {
+						.layoutDirection = CLAY_LEFT_TO_RIGHT,
+						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+					}
+					})
+				{
+				}
+			}
+		}
 	}
-	//CLAY({
-	//	.id = CLAY_ID("OutestContainer"),
-	//	.backgroundColor = (Clay_Color){0.25f, 0.25f, 0.25f, 1.0f},
-	//	.layout = {
-	//		.layoutDirection = CLAY_LEFT_TO_RIGHT,
-	//		.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-	//		.padding = CLAY_PADDING_ALL(16),
-	//		.childGap = 16
-	//	}
-	//	})
-	//{
-	//	CLAY({
-	//		.id = CLAY_ID("OuterContainer0"),
-	//		.backgroundColor = (Clay_Color){0.15f, 0.15f, 0.15f, 1.0f},
-	//		.layout = {
-	//			.layoutDirection = CLAY_TOP_TO_BOTTOM,
-	//			.sizing = {CLAY_SIZING_PERCENT(Clay_Hovered() ? 0.75f : 0.5f), CLAY_SIZING_GROW(1.0f)},
-	//			.padding = CLAY_PADDING_ALL(16),
-	//			.childGap = 16
-	//		}
-	//		})
-	//	{
-	//		Clay_OnHover(HandleOnClickElement, (intptr_t)"Lost Sheep");
-
-	//		CLAY({
-	//			.id = CLAY_ID("Header01a") ,
-	//			.image = {
-	//				.imageData = &texture
-	//			},
-	//			.cornerRadius = CLAY_CORNER_RADIUS(8.0f),
-	//			.border.width = CLAY_BORDER_ALL(Clay_Hovered() ? 2 : 0),
-	//			.border.color = (Clay_Color){0.8f, 0.8f, 0.8f, 1.0f},
-	//			.layout = {
-	//				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-	//				.padding = CLAY_PADDING_ALL(16)
-	//				}
-	//			})
-	//		{
-	//			Clay_OnHover(HandleOnClickElement, (intptr_t)"Lost Sheep");
-	//		}
-
-	//	}
-	//	CLAY({
-	//		.id = CLAY_ID("OuterContainer"),
-	//		.layout = {
-	//			.layoutDirection = CLAY_TOP_TO_BOTTOM,
-	//			.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-	//			.padding = CLAY_PADDING_ALL(16),
-	//			.childGap = 16
-	//		}
-	//		})
-	//	{
-	//		CLAY({
-	//			.id = CLAY_ID("Header") ,
-	//			.backgroundColor = (Clay_Color) { 0.92f, 0.51f, !Clay_Hovered() ? 0.62f : 0.8f, 1.0f },
-	//			.cornerRadius = CLAY_CORNER_RADIUS(8.0f),
-	//			.border.width = CLAY_BORDER_ALL(Clay_Hovered() ? 2 : 0),
-	//			.border.color = (Clay_Color){0.8f, 0.8f, 0.8f, 1.0f},
-	//			.layout = {
-	//				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_PERCENT(0.15f)},
-	//				.padding = CLAY_PADDING_ALL(16),
-	//				.childAlignment = {
-	//				//.x = CLAY_ALIGN_X_CENTER,
-	//				.y = CLAY_ALIGN_Y_CENTER
-	//				}
-	//			}
-	//			})
-	//		{
-	//			CLAY_TEXT(CLAY_STRING("Lost Sheep"),
-	//				CLAY_TEXT_CONFIG({
-	//				.fontSize = 48,
-	//				.textColor = {0.0f, 1.0f, 1.0f, 1.0f},
-	//				.textAlignment = CLAY_TEXT_ALIGN_CENTER
-	//				}));
-	//		}
-	//		for(int i = 0; i < 3; i++)
-	//		{
-	//			CLAY({
-	//				.id = CLAY_IDI("Header2", i) ,
-	//				.image = {
-	//					.imageData = &texture
-	//				},
-	//				.cornerRadius = CLAY_CORNER_RADIUS(8.0f),
-	//				.border.width = CLAY_BORDER_ALL(Clay_Hovered() ? 2 : 0),
-	//				.border.color = (Clay_Color){0.8f, 0.8f, 0.8f, 1.0f},
-	//				.layout = {
-	//					.sizing = {CLAY_SIZING_GROW(1), CLAY_SIZING_GROW(1)},
-	//					.padding = CLAY_PADDING_ALL(16),
-	//					.childAlignment = {
-	//						.x = CLAY_ALIGN_X_CENTER,
-	//						.y = CLAY_ALIGN_Y_CENTER
-	//					}
-	//				}
-	//				})
-	//			{
-	//				CLAY_TEXT(CLAY_STRING("Lost Sheep; My memo for daily activities"),
-	//					CLAY_TEXT_CONFIG({
-	//						.fontSize = Clay_Hovered() ? 24 : 18,
-	//						.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
-	//						.textAlignment = CLAY_TEXT_ALIGN_CENTER
-	//					}));
-	//				Clay_OnHover(HandleOnClickElement, (intptr_t)"Lost Sheep");
-	//			}
-	//		}
-	//	}
-	// }
-	//
-	//bool isHovered = Clay_PointerOver(Clay_GetElementId(CLAY_STRING("Header")));
-	//if (isHovered && IsMouseButtonPressed(LSH_MOUSE_BUTTON_MIDDLE))
-	//{
-	//	LSH_WARN("Handling input example");
-	//}
 }
 
 void RenderUI()
