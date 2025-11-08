@@ -18,8 +18,8 @@ static const char* s_FontPaths[] = {
 
 FT_Library s_FT;
 FT_Face s_Face = NULL;
-static float s_TextSizeBase = 100;
-static float s_TextSizeAdj = 4;
+static float s_TextSizeBase = 100.0f;
+static float s_TextSizeAdj = 1.0f;
 
 static TextCharacter s_Characters[128];
 
@@ -38,58 +38,62 @@ void InitText()
     }
     else
     {
-        LSH_TRACE("Loaded font: %s", s_FontPaths[0]);
-    }
+        s_TextSizeBase /= s_TextSizeAdj;
+        FT_Set_Pixel_Sizes(s_Face, 0, (FT_UInt)s_TextSizeBase);
+       // FT_Set_Char_Size(s_Face, 0, 100, 1280, 1280);
 
-    s_TextSizeBase /= s_TextSizeAdj;
-    FT_Set_Pixel_Sizes(s_Face, 0, (FT_UInt)s_TextSizeBase);
-    //FT_Set_Char_Size(face, 0, 100, 1280, 1280);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
-
-    for (unsigned char c = 0; c < 128; c++)
-    {
-        // load character glyph 
-        if (FT_Load_Char(s_Face, c, FT_LOAD_RENDER))
+        for (unsigned char c = 0; c < 128; c++)
         {
-            LSH_ERROR("FREETYTPE: Failed to load Glyph");
-            continue;
+            // load character glyph 
+        if (FT_Load_Char(s_Face, c, FT_LOAD_RENDER))
+            {
+                LSH_ERROR("FREETYTPE: Failed to load Glyph");
+                continue;
+            }
+
+            // generate texture
+            uint32_t texture;
+            glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                s_Face->glyph->bitmap.width,
+                s_Face->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                s_Face->glyph->bitmap.buffer
+            );
+
+            // set texture options
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            // now store character for later use
+            TextCharacter character = {
+                (LSHIVec2) {
+                            (int)(s_Face->glyph->bitmap.width), (int)(s_Face->glyph->bitmap.rows)
+                    },
+                    (LSHIVec2) {
+                    s_Face->glyph->bitmap_left, s_Face->glyph->bitmap_top
+                    },
+                    s_Face->glyph->advance.x,
+                    texture
+            };
+
+            s_Characters[(int)c] = character;
         }
 
-        // generate texture
-        uint32_t texture;
-        glCreateTextures(GL_TEXTURE_2D, 1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RED,
-            s_Face->glyph->bitmap.width,
-            s_Face->glyph->bitmap.rows,
-            0,
-            GL_RED,
-            GL_UNSIGNED_BYTE,
-            s_Face->glyph->bitmap.buffer
-        );
-
-        // set texture options
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        // now store character for later use
-        TextCharacter character = {
-            (LSHIVec2) { (int)(s_Face->glyph->bitmap.width), (int)(s_Face->glyph->bitmap.rows)},
-            (LSHIVec2) { s_Face->glyph->bitmap_left, s_Face->glyph->bitmap_top},
-            s_Face->glyph->advance.x,
-            texture
-        };
-
-        s_Characters[(int)c] = character;
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // Undo byte alignment
     }
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // Undo byte alignment
+	LSH_TRACE("Initialized text");
 }
 
 void RenderTextLine(const char* text, uint32_t length, const LSHVec2* position, const LSHVec2* bboxDim, float scale, const LSHVec4* color)

@@ -18,8 +18,9 @@
 #include "clay.h"
 #pragma warning(pop)
 
-static int s_DebugLayout = 0;
+#include <string.h>
 
+static int s_DebugLayout = 0;
 static float s_DeltaTime = 16.66f;
 
 static float s_DoubleClickThreshold = 510.0f;
@@ -31,6 +32,10 @@ static double s_yPos = 0.0f;
 static int s_ChangeWindowPosition = 0;
 
 static float s_TitleBarHeight = 64.0f;
+static TabBarContent s_TabBarContent;
+static int s_CurrentTabIndex = 0;
+static int s_NextTabIndex = 0;
+static int s_IsTabFloating = 0;
 
 static TextureName textureLSH = TextureName_CStell;
 static TextureName textureLSHAlpha = TextureName_CStellAlpha;
@@ -48,7 +53,7 @@ typedef struct MouseEventStackElement
 
 static int s_LeftClickDown = 0;
 
-static int s_CurrentIndex = 0;
+static int s_CurrentEventIndex = 0;
 static MouseEventStackElement s_MouseEventQueue[32];
 
 static const char* ClayCommandTypeToString(Clay_RenderCommandType type) {
@@ -62,6 +67,10 @@ static const char* ClayCommandTypeToString(Clay_RenderCommandType type) {
 	case CLAY_RENDER_COMMAND_TYPE_CUSTOM: return "CUSTOM";
 	default: return "UNKNOWN";
 	}
+}
+
+static Clay_String ClayStringFromC(const char* str) {
+	return (Clay_String) { .isStaticallyAllocated = false, .length = (int32_t)strlen(str), .chars = str };
 }
 
 static int MinimizeWindowUI()
@@ -85,6 +94,12 @@ static int CloseWindowUI()
 static int BeginDoubleClickEvent()
 {
 	s_StartDoubleClickEvent = 1;
+	return 1;
+}
+
+static int OnTabBarElementClicked()
+{
+	s_CurrentTabIndex = s_NextTabIndex;
 	return 1;
 }
 
@@ -114,24 +129,32 @@ static int SetWindowPosition()
 
 static void HandleOnLeftClickElement(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
 {
-	s_MouseEventQueue[s_CurrentIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
-	s_MouseEventQueue[s_CurrentIndex].Func = (MouseEventFunc)userData;
-	s_CurrentIndex++;
+	s_MouseEventQueue[s_CurrentEventIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
+	s_MouseEventQueue[s_CurrentEventIndex].Func = (MouseEventFunc)userData;
+	s_CurrentEventIndex++;
+}
+
+static void HandleOnLeftClickTabElement(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
+{
+	s_MouseEventQueue[s_CurrentEventIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
+	s_MouseEventQueue[s_CurrentEventIndex].Func = OnTabBarElementClicked;
+	s_NextTabIndex = (int)userData;
+	s_CurrentEventIndex++;
 }
 
 static void HandleOnDoubleLeftClickElement(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
 {
 	if(s_StartDoubleClickEvent && s_DoubleClickDelta < s_DoubleClickThreshold)
 	{
-		s_MouseEventQueue[s_CurrentIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
-		s_MouseEventQueue[s_CurrentIndex].Func = (MouseEventFunc)userData;
-		s_CurrentIndex++;
+		s_MouseEventQueue[s_CurrentEventIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
+		s_MouseEventQueue[s_CurrentEventIndex].Func = (MouseEventFunc)userData;
+		s_CurrentEventIndex++;
 	}
 	else
 	{
-		s_MouseEventQueue[s_CurrentIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
-		s_MouseEventQueue[s_CurrentIndex].Func = BeginDoubleClickEvent;
-		s_CurrentIndex++;
+		s_MouseEventQueue[s_CurrentEventIndex].MouseButtonCode = LSH_MOUSE_BUTTON_LEFT;
+		s_MouseEventQueue[s_CurrentEventIndex].Func = BeginDoubleClickEvent;
+		s_CurrentEventIndex++;
 	}
 }
 
@@ -148,21 +171,21 @@ static void HandleOnLeftClickMove(Clay_ElementId elementId, Clay_PointerData poi
 
 static void HandleOnMiddleClickElement(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
 {
-	s_MouseEventQueue[s_CurrentIndex].MouseButtonCode = LSH_MOUSE_BUTTON_MIDDLE;
-	s_MouseEventQueue[s_CurrentIndex].Func = (MouseEventFunc)userData;
-	s_CurrentIndex++;
+	s_MouseEventQueue[s_CurrentEventIndex].MouseButtonCode = LSH_MOUSE_BUTTON_MIDDLE;
+	s_MouseEventQueue[s_CurrentEventIndex].Func = (MouseEventFunc)userData;
+	s_CurrentEventIndex++;
 }
 
 static void HandleOnRightClickElement(Clay_ElementId elementId, Clay_PointerData pointerInfo, intptr_t userData)
 {
-	s_MouseEventQueue[s_CurrentIndex].MouseButtonCode = LSH_MOUSE_BUTTON_RIGHT;
-	s_MouseEventQueue[s_CurrentIndex].Func = (MouseEventFunc)userData;
-	s_CurrentIndex++;
+	s_MouseEventQueue[s_CurrentEventIndex].MouseButtonCode = LSH_MOUSE_BUTTON_RIGHT;
+	s_MouseEventQueue[s_CurrentEventIndex].Func = (MouseEventFunc)userData;
+	s_CurrentEventIndex++;
 }
 
 static void HandleClayErrors(Clay_ErrorData errorData)
 {
-	LSH_ERROR("Type: %s; Msg: %s", ENUM_TO_STRING(errorData.errorType), errorData.errorText.chars);
+	LSH_ERROR("Type: %s; Msg: %s", TO_STRING(errorData.errorType), errorData.errorText.chars);
 }
 
 static inline Clay_Dimensions MeasureText(Clay_StringSlice text, Clay_TextElementConfig* config, void* userData) {
@@ -201,6 +224,440 @@ static void ListenForMouseButtonDown()
 		s_LeftClickDown = 0;
 }
 
+static void RenderWindowControlUI()
+{
+	CLAY({
+		.id = CLAY_ID("WindowControl"),
+		.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
+		.layout = {
+			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.sizing = {CLAY_SIZING_FIT(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
+			.childAlignment = {
+				.x = CLAY_ALIGN_X_RIGHT,
+				.y = CLAY_ALIGN_Y_CENTER
+			}
+		}
+		})
+	{
+		CLAY({
+			.id = CLAY_ID("MinimizeButton"),
+			.backgroundColor = (Clay_Color){0.16f, 0.52f, 0.66f, Clay_Hovered() ? 1.0f : 0.0f},
+			.layout = {
+				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight * 0.7f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+				}
+			}
+			})
+		{
+			CLAY({
+				.id = CLAY_ID("MinimizeIcon"),
+				.image = {
+					.imageData = &textureMinimize
+				},
+				.layout = {
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				}
+				})
+			{
+			}
+			Clay_OnHover(HandleOnLeftClickElement, (intptr_t)MinimizeWindowUI);
+		}
+
+		CLAY({
+			.id = CLAY_ID("MinMaxButton"),
+			.backgroundColor = (Clay_Color){0.16f, 0.52f, 0.66f, Clay_Hovered() ? 1.0f : 0.0f},
+			.layout = {
+				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight * 0.7f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+				}
+			}
+			})
+		{
+			CLAY({
+				.id = CLAY_ID("MaximizeIcon"),
+				.image = {
+					.imageData = &textureMaximize
+				},
+				.layout = {
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				}
+				})
+			{
+			}
+
+			Clay_OnHover(HandleOnLeftClickElement, (intptr_t)MaximizeWindowUI);
+		}
+
+		CLAY({
+			.id = CLAY_ID("CloseButton"),
+			.backgroundColor = (Clay_Color){0.90f, 0.29f, 0.24f, Clay_Hovered() ? 1.0f : 0.0f},
+			.layout = {
+				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight * 0.7f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+				}
+			}
+			})
+		{
+			CLAY({
+				.id = CLAY_ID("CloseIcon"),
+				.image = {
+					.imageData = &textureClose
+				},
+				.layout = {
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				}
+				})
+			{
+			}
+			Clay_OnHover(HandleOnLeftClickElement, (intptr_t)CloseWindowUI);
+		}
+	}
+}
+
+static void RenderMenubarUI()
+{
+	CLAY({
+		.id = CLAY_ID("MenuBar"),
+		.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
+		.layout = {
+			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
+			.childAlignment = {
+				.x = CLAY_ALIGN_X_LEFT,
+				.y = CLAY_ALIGN_Y_CENTER
+			}
+		}
+		})
+	{
+		CLAY({
+			.id = CLAY_ID("FileButton"),
+			.backgroundColor = (Clay_Color){0.35f, 0.35f, 0.35f, Clay_Hovered() ? 1.0f : 0.0f},
+			.layout = {
+				.sizing = {CLAY_SIZING_FIXED(48.0f), CLAY_SIZING_GROW(1.0f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+				}
+			}
+			})
+		{
+			CLAY_TEXT(CLAY_STRING("File"),
+				CLAY_TEXT_CONFIG({
+					.fontSize = 16,
+					.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+					.textAlignment = CLAY_TEXT_ALIGN_CENTER
+					})
+			);
+		}
+		CLAY({
+			.id = CLAY_ID("WindowControlArea"),
+			.layout = {
+				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+			}
+			})
+		{
+			Clay_OnHover(HandleOnDoubleLeftClickElement, (intptr_t)MaximizeWindowUI);
+			CLAY({
+				.id = CLAY_ID("WindowControlArea2"),
+				.layout = {
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+					.childAlignment = {
+						.x = CLAY_ALIGN_X_RIGHT,
+						.y = CLAY_ALIGN_Y_CENTER
+					}
+				}
+				})
+			{
+				Clay_OnHover(HandleOnLeftClickMove, (intptr_t)"Move window");
+				CLAY({
+					.id = CLAY_ID("ApplicationName"),
+					.cornerRadius = CLAY_CORNER_RADIUS(1.0f),
+					.border.width = CLAY_BORDER_ALL(1),
+					.border.color = (Clay_Color){0.1f, 0.1f, 0.1f, 1.0f},
+					.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 1.0f : 0.4f},
+					.layout = {
+						.sizing = {CLAY_SIZING_FIT(1.0f), CLAY_SIZING_GROW(1.0f)},
+						.padding = CLAY_PADDING_ALL(4),
+					}
+					})
+				{
+					CLAY_TEXT(CLAY_STRING("Lost Sheep"),
+						CLAY_TEXT_CONFIG({
+							.fontSize = 20,
+							.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+							.textAlignment = CLAY_TEXT_ALIGN_CENTER
+							})
+					);
+				}
+			}
+			RenderWindowControlUI();
+		}
+	}
+}
+
+static void RenderHomeTabUI(const char* tabName)
+{
+	CLAY({
+	.id = CLAY_SID(ClayStringFromC(tabName)),
+	.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
+	.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 1.0f : 0.5f},
+	.layout = {
+		.layoutDirection = CLAY_LEFT_TO_RIGHT,
+		.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+	}
+		})
+	{
+	}
+}
+
+static void RenderTimeGraphTabUI(const char* tabName)
+{
+	CLAY({
+	.id = CLAY_SID(ClayStringFromC(tabName)),
+	.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
+	.backgroundColor = (Clay_Color){0.69f, 0.87f, 0.85f, Clay_Hovered() ? 1.0f : 0.5f},
+	.layout = {
+		.layoutDirection = CLAY_LEFT_TO_RIGHT,
+		.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+	}
+		})
+	{
+	}
+}
+
+static void RenderTabContentUI(const TabBarElement* tabElement)
+{
+	CLAY({
+	.id = CLAY_IDI("TabWrapper", tabElement->TabIndex),
+	.layout = {
+		.layoutDirection = CLAY_LEFT_TO_RIGHT,
+		.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+	}
+		})
+	{
+		tabElement->Content.RenderTabUI(tabElement->TabName);
+	}
+}
+
+static void RenderTabBarElementUI(const TabBarElement* tabElement)
+{
+	CLAY({
+	.id = CLAY_IDI("TabHandle", tabElement->TabIndex),
+	.backgroundColor = Clay_Hovered() ? (Clay_Color) { 1.00f, 0.51f, 0.65f, 1.0f } : (Clay_Color) { 0.15f, 0.15f, 0.15f, 0.85f },
+	.layout = {
+			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.sizing = {CLAY_SIZING_FIXED(128.0f), CLAY_SIZING_GROW(1.0f)},
+			.childAlignment = {
+				.x = CLAY_ALIGN_X_CENTER,
+				.y = CLAY_ALIGN_Y_CENTER
+			}
+		}
+	})
+	{
+		Clay_OnHover(HandleOnLeftClickTabElement, (intptr_t)(tabElement->TabIndex));
+		CLAY_TEXT(ClayStringFromC(tabElement->TabName),
+			CLAY_TEXT_CONFIG({
+				.fontSize = 16,
+				.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
+				.textAlignment = CLAY_TEXT_ALIGN_LEFT,
+				.wrapMode = CLAY_TEXT_WRAP_NONE
+			})
+		);
+	}
+}
+
+static void RenderTabBarUI()
+{
+	CLAY({
+	.id = CLAY_ID("TabBar"),
+	.backgroundColor = (Clay_Color){0.3f, 0.3f, 0.3f, s_IsTabFloating ? 1.0f : 0.0f},
+	.layout = {
+		.layoutDirection = CLAY_LEFT_TO_RIGHT,
+		.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+		.childGap = 2,
+		.childAlignment = {
+			.x = CLAY_ALIGN_X_LEFT,
+			.y = CLAY_ALIGN_Y_BOTTOM
+		}
+	}
+	})
+	{
+		for (int i = 0; i < s_TabBarContent.Count; i++)
+		{
+			RenderTabBarElementUI(s_TabBarContent.TabBarElements[i]);
+		}
+	}
+}
+
+static void RenderDockspaceUI()
+{
+	CLAY({
+			.id = CLAY_ID("DockSpace"),
+			.backgroundColor = (Clay_Color){0.1f, 0.1f, 0.1f, Clay_Hovered() ? 1.0f : 0.0f},
+			.layout = {
+				.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_CENTER
+				}
+			}
+		})
+	{
+		CLAY({
+			.id = CLAY_ID("LSHBackgroundContainer"),
+			.backgroundColor = (Clay_Color){0.1f, 0.1f, 0.1f, 0.0f},
+			.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
+			.layout = {
+				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_RIGHT,
+					.y = CLAY_ALIGN_Y_BOTTOM
+				}
+			}
+			})
+		{
+			CLAY({
+				.id = CLAY_ID("LSHBackground"),
+				.image = {
+					.imageData = &textureLSHAlpha
+				},
+				.layout = {
+					.sizing = {CLAY_SIZING_FIXED(512.0f), CLAY_SIZING_FIXED(512.0f)},
+				}
+				})
+			{
+			}
+		}
+
+		RenderTabContentUI(s_TabBarContent.TabBarElements[s_CurrentTabIndex]);
+	}
+}
+
+static void RenderTitleBarUI()
+{
+	CLAY({
+			.id = CLAY_ID("TitleBar"),
+			.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 1.0f},
+			.layout = {
+				.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight)},
+			}
+		})
+	{
+		CLAY({
+			.id = CLAY_ID("LostSheepIcon"),
+			.image = {
+				.imageData = &textureLSH
+			},
+			.layout = {
+				.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight), CLAY_SIZING_FIXED(s_TitleBarHeight)},
+			}
+			})
+		{
+			CLAY({
+				.id = CLAY_ID("IconOverlay"),
+				.backgroundColor = (Clay_Color){1.0f, 1.0f, 1.0f, Clay_Hovered() ? 0.15f : 0.0f},
+				.layout = {
+					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
+				}
+				})
+			{
+			}
+		}
+		CLAY({
+			.id = CLAY_ID("TitlebarContent"),
+			.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
+			.layout = {
+				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight)},
+				.childAlignment = {
+					.x = CLAY_ALIGN_X_CENTER,
+					.y = CLAY_ALIGN_Y_TOP
+				}
+			}
+			})
+		{
+			RenderMenubarUI();
+			RenderTabBarUI();
+		}
+	}
+}
+
+void InitTabBarContent()
+{
+	s_TabBarContent.Count = 0;
+	s_TabBarContent.Capacity = 4;
+	s_TabBarContent.TabBarElements = malloc(sizeof(TabBarElement*) * s_TabBarContent.Capacity);
+}
+
+void AddTabBarElement(const char* tabName, TabUIfn UIfn)
+{
+	if (s_TabBarContent.Count > s_TabBarContent.Capacity)
+	{
+		int growCapacity = 4;
+		s_TabBarContent.Capacity += growCapacity;
+		TabBarElement** newTabBarElements = realloc(s_TabBarContent.TabBarElements, sizeof(TabBarElement) * s_TabBarContent.Capacity);
+
+		if (newTabBarElements == NULL)
+		{
+			LSH_FATAL("Failed to grow TabBar capacity to new capacity: %d", s_TabBarContent.Capacity);
+			s_TabBarContent.Capacity -= growCapacity;
+
+			return;
+		}
+
+		s_TabBarContent.TabBarElements = newTabBarElements;
+	}
+
+	TabBarElement* newElement = (TabBarElement*)malloc(sizeof(TabBarElement));
+
+	if (newElement == NULL)
+	{
+		LSH_FATAL("Failed to create new tab element, tab name: %s", tabName);
+		return;
+	}
+
+#ifdef LSH_PLATFORM_WINDOWS
+		newElement->TabName = _strdup(tabName);
+#else
+		newElement->TabName = strdup(tabName);
+#endif
+
+	if (!newElement->TabName)
+	{
+		LSH_FATAL("Failed to duplicate tab name: %s", tabName);
+		free(newElement);
+		return;
+	}
+
+	newElement->TabIndex = s_TabBarContent.Count;
+	newElement->Content.RenderTabUI = UIfn;
+	s_TabBarContent.TabBarElements[s_TabBarContent.Count++] = newElement;
+}
+
+void CleanTabBarContent()
+{
+	for (int i = 0; i < s_TabBarContent.Count; i++) {
+		free(s_TabBarContent.TabBarElements[i]->TabName);
+		free(s_TabBarContent.TabBarElements[i]);
+	}
+	free(s_TabBarContent.TabBarElements);
+	s_TabBarContent.TabBarElements = NULL;
+	s_TabBarContent.Count = 0;
+	s_TabBarContent.Capacity = 0;
+}
+
 void InitUI()
 {
 	GLFWwindow* window = GetNativeWindow();
@@ -222,12 +679,17 @@ void InitUI()
 	Clay_UpdateScrollContainers(true, (Clay_Vector2) { 0.0f, 0.0f }, s_DeltaTime);
 
 	LSH_TRACE("UI initialized");
+
+	// Handle these functions depending on application
+	InitTabBarContent();
+	AddTabBarElement("Home", RenderHomeTabUI);
+	AddTabBarElement("TimeGraph", RenderTimeGraphTabUI);
 }
 
 void OnUpdateUI(float deltaTime)
 {
 	// Reset mouse event queue;
-	s_CurrentIndex = 0;
+	s_CurrentEventIndex = 0;
 
 	s_DeltaTime = deltaTime;
 
@@ -268,366 +730,10 @@ void BuildUI()
 		}
 		})
 		{
-		CLAY({
-			.id = CLAY_ID("TitleBar"),
-			.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 1.0f},
-			.layout = {
-				.layoutDirection = CLAY_LEFT_TO_RIGHT,
-				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight)},
-			}
-			})
-			{
-			CLAY({
-				.id = CLAY_ID("LostSheepIcon"),
-				.image = {
-					.imageData = &textureLSH
-				},
-				.layout = {
-					.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight), CLAY_SIZING_FIXED(s_TitleBarHeight)},
-				}
-				})
-				{
-				CLAY({
-					.id = CLAY_ID("IconOverlay"),
-					.backgroundColor = (Clay_Color){1.0f, 1.0f, 1.0f, Clay_Hovered() ? 0.15f : 0.0f},
-					.layout = {
-						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-					}
-					})
-				{
-				}
-			}
-			CLAY({
-				.id = CLAY_ID("TitlebarContent"),
-				.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
-				.layout = {
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
-					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight)},
-					.childAlignment = {
-						.x = CLAY_ALIGN_X_CENTER,
-						.y = CLAY_ALIGN_Y_TOP
-					}
-				}
-				})
-			{
-				CLAY({
-					.id = CLAY_ID("MenuBar"),
-					.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
-					.layout = {
-						.layoutDirection = CLAY_LEFT_TO_RIGHT,
-						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
-						.childAlignment = {
-							.x = CLAY_ALIGN_X_LEFT,
-							.y = CLAY_ALIGN_Y_CENTER
-						}
-					}
-					})
-				{
-					CLAY({
-						.id = CLAY_ID("FileButton"),
-						.backgroundColor = (Clay_Color){0.35f, 0.35f, 0.35f, Clay_Hovered() ? 1.0f : 0.0f},
-						.layout = {
-							.sizing = {CLAY_SIZING_FIXED(48.0f), CLAY_SIZING_GROW(1.0f)},
-							.childAlignment = {
-								.x = CLAY_ALIGN_X_CENTER,
-								.y = CLAY_ALIGN_Y_CENTER
-							}
-						}
-						})
-					{
-						CLAY_TEXT(CLAY_STRING("File"),
-						CLAY_TEXT_CONFIG({
-							.fontSize = 16,
-							.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
-							.textAlignment = CLAY_TEXT_ALIGN_CENTER
-							})
-						);
-					}
-					CLAY({
-						.id = CLAY_ID("WindowControlArea"),
-						.layout = {
-							.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-						}
-						})
-					{
-						Clay_OnHover(HandleOnDoubleLeftClickElement, (intptr_t)MaximizeWindowUI);
-						CLAY({
-							.id = CLAY_ID("WindowControlArea2"),
-							.layout = {
-								.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-								.childAlignment = {
-									.x = CLAY_ALIGN_X_RIGHT,
-									.y = CLAY_ALIGN_Y_CENTER
-								}
-							}
-							})
-						{
-							Clay_OnHover(HandleOnLeftClickMove, (intptr_t)"Move window");
-							CLAY({
-								.id = CLAY_ID("ApplicationName"),
-								.cornerRadius = CLAY_CORNER_RADIUS(1.0f),
-								.border.width = CLAY_BORDER_ALL(1),
-								.border.color = (Clay_Color){0.1f, 0.1f, 0.1f, 1.0f},
-								.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 1.0f : 0.4f},
-								.layout = {
-									.sizing = {CLAY_SIZING_FIT(1.0f), CLAY_SIZING_GROW(1.0f)},
-									.padding = CLAY_PADDING_ALL(4),
-								}
-								})
-							{
-								CLAY_TEXT(CLAY_STRING("Lost Sheep"),
-									CLAY_TEXT_CONFIG({
-										.fontSize = 20,
-										.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
-										.textAlignment = CLAY_TEXT_ALIGN_CENTER
-									})
-								);
-							}
-						}
-					}
-				}
-				CLAY({
-					.id = CLAY_ID("TabBar"),
-					.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
-					.layout = {
-						.layoutDirection = CLAY_LEFT_TO_RIGHT,
-						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-						.childGap = 2,
-						.childAlignment = {
-							.x = CLAY_ALIGN_X_LEFT,
-							.y = CLAY_ALIGN_Y_BOTTOM
-						}
-					}
-					})
-				{
-					// Tab handles
-					CLAY({
-						.id = CLAY_ID("TabHandle1"),
-						.backgroundColor = Clay_Hovered() ? (Clay_Color) { 1.00f, 0.51f, 0.65f, 1.0f } : (Clay_Color) { 0.15f, 0.15f, 0.15f, 0.85f },
-						.layout = {
-							.layoutDirection = CLAY_TOP_TO_BOTTOM,
-							.sizing = {CLAY_SIZING_FIXED(128.0f), CLAY_SIZING_GROW(1.0f)},
-							.childAlignment = {
-								.x = CLAY_ALIGN_X_CENTER,
-								.y = CLAY_ALIGN_Y_CENTER
-							}
-						}
-						})
-					{
-						CLAY_TEXT(CLAY_STRING("Calender"),
-							CLAY_TEXT_CONFIG({
-								.fontSize = 16,
-								.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
-								.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-								.wrapMode = CLAY_TEXT_WRAP_NONE
-							})
-						);
-					}
+			RenderTitleBarUI();
 
-					CLAY({
-						.id = CLAY_ID("TabHandle2"),
-						.backgroundColor = Clay_Hovered() ? (Clay_Color) { 1.00f, 0.51f, 0.65f, 1.0f } : (Clay_Color) { 0.15f, 0.15f, 0.15f, 0.85f },
-						.layout = {
-							.layoutDirection = CLAY_TOP_TO_BOTTOM,
-							.sizing = {CLAY_SIZING_FIXED(128.0f), CLAY_SIZING_GROW(1.0f)},
-							.childAlignment = {
-								.x = CLAY_ALIGN_X_CENTER,
-								.y = CLAY_ALIGN_Y_CENTER
-							}
-						}
-						})
-					{
-						CLAY_TEXT(CLAY_STRING("Time graph"),
-							CLAY_TEXT_CONFIG({
-								.fontSize = 16,
-								.textColor = {1.0f, 1.0f, 1.0f, 1.0f},
-								.textAlignment = CLAY_TEXT_ALIGN_LEFT,
-								.wrapMode = CLAY_TEXT_WRAP_NONE
-							})
-						);
-					}
-				}
-			}
-			CLAY({
-				.id = CLAY_ID("WindowControl"),
-				.backgroundColor = (Clay_Color){0.2f, 0.2f, 0.2f, 0.0f},
-				.layout = {
-					.layoutDirection = CLAY_LEFT_TO_RIGHT,
-					.sizing = {CLAY_SIZING_FIT(1.0f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
-					.childAlignment = {
-						.x = CLAY_ALIGN_X_RIGHT,
-						.y = CLAY_ALIGN_Y_CENTER
-					}
-				}
-				})
-			{
-				CLAY({
-					.id = CLAY_ID("MinimizeButton"),
-					.backgroundColor = (Clay_Color){0.16f, 0.52f, 0.66f, Clay_Hovered() ? 1.0f : 0.0f},
-					.layout = {
-						.layoutDirection = CLAY_TOP_TO_BOTTOM,
-						.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight * 0.7f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
-						.childAlignment = {
-							.x = CLAY_ALIGN_X_CENTER,
-							.y = CLAY_ALIGN_Y_CENTER
-						}
-					}
-					})
-				{
-					CLAY({
-						.id = CLAY_ID("MinimizeIcon"),
-						.image = {
-							.imageData = &textureMinimize
-						},
-						.layout = {
-							.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-						}
-						})
-					{
-					}
-					Clay_OnHover(HandleOnLeftClickElement, (intptr_t)MinimizeWindowUI);
-				}
-
-				CLAY({
-					.id = CLAY_ID("MinMaxButton"),
-					.backgroundColor = (Clay_Color){0.16f, 0.52f, 0.66f, Clay_Hovered() ? 1.0f : 0.0f},
-					.layout = {
-						.layoutDirection = CLAY_TOP_TO_BOTTOM,
-						.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight * 0.7f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
-						.childAlignment = {
-							.x = CLAY_ALIGN_X_CENTER,
-							.y = CLAY_ALIGN_Y_CENTER
-						}
-					}
-					})
-				{
-					CLAY({
-						.id = CLAY_ID("MaximizeIcon"),
-						.image = {
-							.imageData = &textureMaximize
-						},
-						.layout = {
-							.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-						}
-						})
-					{
-					}
-
-					Clay_OnHover(HandleOnLeftClickElement, (intptr_t)MaximizeWindowUI);
-				}
-
-				CLAY({
-					.id = CLAY_ID("CloseButton"),
-					.backgroundColor = (Clay_Color){0.90f, 0.29f, 0.24f, Clay_Hovered() ? 1.0f : 0.0f},
-					.layout = {
-						.layoutDirection = CLAY_TOP_TO_BOTTOM,
-						.sizing = {CLAY_SIZING_FIXED(s_TitleBarHeight * 0.7f), CLAY_SIZING_FIXED(s_TitleBarHeight * 0.5f)},
-						.childAlignment = {
-							.x = CLAY_ALIGN_X_CENTER,
-							.y = CLAY_ALIGN_Y_CENTER
-						}
-					}
-					})
-				{
-					CLAY({
-						.id = CLAY_ID("CloseIcon"),
-						.image = {
-							.imageData = &textureClose
-						},
-						.layout = {
-							.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-						}
-						})
-					{
-					}
-					Clay_OnHover(HandleOnLeftClickElement, (intptr_t)CloseWindowUI);
-				}
-			}
+			RenderDockspaceUI();
 		}
-		CLAY({
-			.id = CLAY_ID("DockSpace"),
-			.backgroundColor = (Clay_Color){0.1f, 0.1f, 0.1f, Clay_Hovered() ? 1.0f : 0.0f},
-			.layout = {
-				.layoutDirection = CLAY_LEFT_TO_RIGHT,
-				.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-				.childAlignment = {
-					.x = CLAY_ALIGN_X_CENTER,
-					.y = CLAY_ALIGN_Y_CENTER
-				}
-			}
-			})
-		{
-			CLAY({
-				.id = CLAY_ID("LSHBackgroundContainer"),
-				.backgroundColor = (Clay_Color){0.1f, 0.1f, 0.1f, 0.0f},
-				.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
-				.layout = {
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
-					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-					.childAlignment = {
-						.x = CLAY_ALIGN_X_RIGHT,
-						.y = CLAY_ALIGN_Y_BOTTOM
-					}
-				}
-				})
-			{
-				CLAY({
-					.id = CLAY_ID("LSHBackground"),
-					.image = {
-						.imageData = &textureLSHAlpha
-					},
-					.layout = {
-						.sizing = {CLAY_SIZING_FIXED(512.0f), CLAY_SIZING_FIXED(512.0f)},
-					}
-					})
-				{
-				}
-			}
-
-			// Tabs go here!
-			CLAY({
-				.id = CLAY_ID("TabWrapper"),
-				.layout = {
-					.layoutDirection = CLAY_LEFT_TO_RIGHT,
-					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-				}
-				})
-			{
-				CLAY({
-					.id = CLAY_ID("Tab1"),
-					.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
-					.backgroundColor = (Clay_Color){1.00f, 0.51f, 0.65f, Clay_Hovered() ? 1.0f : 0.5f},
-					.layout = {
-						.layoutDirection = CLAY_LEFT_TO_RIGHT,
-						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-					}
-					})
-				{
-				}
-			}
-
-			CLAY({
-				.id = CLAY_ID("TabWrapper2"),
-				.layout = {
-					.layoutDirection = CLAY_LEFT_TO_RIGHT,
-					.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-				}
-				})
-			{
-				CLAY({
-					.id = CLAY_ID("Tab2"),
-					.floating = {.attachTo = CLAY_ATTACH_TO_PARENT },
-					.backgroundColor = (Clay_Color){0.69f, 0.87f, 0.85f, Clay_Hovered() ? 1.0f : 0.5f},
-					.layout = {
-						.layoutDirection = CLAY_LEFT_TO_RIGHT,
-						.sizing = {CLAY_SIZING_GROW(1.0f), CLAY_SIZING_GROW(1.0f)},
-					}
-					})
-				{
-				}
-			}
-		}
-	}
 }
 
 void RenderUI()
@@ -720,12 +826,12 @@ int OnKeyPressUI(Event* event)
 
 int OnMouseClickedUI(Event* event)
 {
-	if (*((int*)event->Data) == s_MouseEventQueue[s_CurrentIndex - 1].MouseButtonCode)
+	if (*((int*)event->Data) == s_MouseEventQueue[s_CurrentEventIndex - 1].MouseButtonCode)
 	{
-		if (s_MouseEventQueue[s_CurrentIndex - 1].Func)
+		if (s_MouseEventQueue[s_CurrentEventIndex - 1].Func)
 		{
-			s_MouseEventQueue[s_CurrentIndex - 1].Func();
-			s_CurrentIndex--;
+			s_MouseEventQueue[s_CurrentEventIndex - 1].Func();
+			s_CurrentEventIndex--;
 			return 1;
 		}
 	}
@@ -735,4 +841,5 @@ int OnMouseClickedUI(Event* event)
 
 void ShutdownUI()
 {
+	CleanTabBarContent();
 }
